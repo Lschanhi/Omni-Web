@@ -17,6 +17,7 @@ import {
   atualizarProduto,
   criarProduto,
   enviarMidiasProduto,
+  listarMidiasProduto,
   type ProdutoMutacaoPayload,
 } from "../../Services/produtos/produtoService";
 import {
@@ -1376,11 +1377,28 @@ export function PerfilUsuarioPage() {
       const produtoIdPersistido = produtoSalvo?.id ?? produtoForm.id;
 
       if (produtoIdPersistido) {
+        let imagemPersistidaPublicamente = false;
+
         if (produtoImagemArquivo) {
-          await enviarMidiasProduto(produtoIdPersistido, [produtoImagemArquivo]);
+          const midiasPublicas = await enviarMidiasProduto(produtoIdPersistido, [produtoImagemArquivo]);
+          const midiasConfirmadas =
+            midiasPublicas.length > 0
+              ? midiasPublicas
+              : await listarMidiasProduto(produtoIdPersistido);
+
+          if (midiasConfirmadas.length === 0) {
+            throw new Error(
+              "A API salvou os dados do produto, mas nao confirmou a imagem publica. Verifique o endpoint de midias da API.",
+            );
+          }
+
+          saveStoredProdutoImage(produtoIdPersistido, midiasConfirmadas[0]);
+          imagemPersistidaPublicamente = true;
         }
 
-        if (produtoForm.imagemUrl.trim()) {
+        if (imagemPersistidaPublicamente) {
+          // Mantem a URL publica confirmada pela API.
+        } else if (produtoForm.imagemUrl.trim()) {
           saveStoredProdutoImage(produtoIdPersistido, produtoForm.imagemUrl.trim());
         } else {
           removeStoredProdutoImage(produtoIdPersistido);
