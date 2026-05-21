@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, MapPin, Minus, Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { PageLayout } from "../../Components/PageLayout";
 import { Input } from "../../Components/Input";
 import { useCart } from "../../context/CartContext";
@@ -139,26 +139,28 @@ function obterEnderecoPrincipal(enderecos: EnderecoApiResponse[]) {
   return enderecos.find((endereco) => endereco.isPrincipal) ?? enderecos[0] ?? null;
 }
 
-function CheckoutReadonlyField({
-  label,
-  value,
-  placeholder = "",
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[#6b6b6b]">{label}</label>
-      <input
-        readOnly
-        value={value}
-        placeholder={placeholder}
-        className="h-12 w-full rounded-xl border border-white/10 bg-black/40 px-4 text-white outline-none"
-      />
-    </div>
-  );
+function formatarResumoEndereco(endereco: EnderecoApiResponse) {
+  return `${endereco.tipoLogradouro} ${endereco.nomeEndereco}, ${endereco.numero}`;
+}
+
+function formatarDetalheEndereco(endereco: EnderecoApiResponse) {
+  const partes = [`${endereco.cidade}, ${endereco.uf}`];
+
+  if (endereco.complemento?.trim()) {
+    partes.unshift(endereco.complemento.trim());
+  }
+
+  const cep = formatarCep(endereco.cep);
+
+  if (cep.trim()) {
+    partes.push(cep);
+  }
+
+  if (endereco.isPrincipal) {
+    partes.push("Principal");
+  }
+
+  return partes.join(" • ");
 }
 
 export function PagamentPage() {
@@ -524,62 +526,36 @@ export function PagamentPage() {
                     const selecionado = enderecoSelecionado?.id === endereco.id;
 
                     return (
-                      <div
+                      <label
                         key={endereco.id}
-                        className={`rounded-2xl border p-4 transition ${
+                        htmlFor={`endereco-salvo-${endereco.id}`}
+                        className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
                           selecionado
                             ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_0_1px_rgba(250,204,21,0.20)]"
                             : "border-white/10 bg-black/20"
                         }`}
                       >
-                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-2 text-sm font-medium text-white">
-                            <MapPin className="h-4 w-4 text-yellow-400" />
-                            <span>Endereco {index + 1}</span>
+                        <input
+                          id={`endereco-salvo-${endereco.id}`}
+                          type="radio"
+                          name="endereco-salvo"
+                          checked={selecionado}
+                          onChange={() => handleSelecionarEndereco(endereco.id)}
+                          className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                            <p className="font-semibold text-white">
+                              {formatarResumoEndereco(endereco)}
+                            </p>
+                            <span className="text-xs text-zinc-500">Endereco {index + 1}</span>
                           </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {endereco.isPrincipal ? (
-                              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
-                                <Check className="h-3.5 w-3.5 text-yellow-400" />
-                                Principal
-                              </span>
-                            ) : null}
-
-                            <button
-                              type="button"
-                              onClick={() => handleSelecionarEndereco(endereco.id)}
-                              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                                selecionado
-                                  ? "border border-yellow-400/20 bg-yellow-400/15 text-yellow-300"
-                                  : "border border-white/10 bg-white/5 text-neutral-200 hover:border-yellow-400/40 hover:text-white"
-                              }`}
-                            >
-                              {selecionado ? "Selecionado" : "Usar este endereco"}
-                            </button>
-                          </div>
+                          <p className="mt-1 text-sm text-zinc-400">
+                            {formatarDetalheEndereco(endereco)}
+                          </p>
                         </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <CheckoutReadonlyField
-                            label="Tipo de logradouro"
-                            value={endereco.tipoLogradouro}
-                          />
-                          <CheckoutReadonlyField
-                            label="Nome do endereco"
-                            value={endereco.nomeEndereco}
-                          />
-                          <CheckoutReadonlyField label="Numero" value={endereco.numero} />
-                          <CheckoutReadonlyField
-                            label="Complemento"
-                            value={endereco.complemento ?? ""}
-                            placeholder="Nao informado"
-                          />
-                          <CheckoutReadonlyField label="CEP" value={formatarCep(endereco.cep)} />
-                          <CheckoutReadonlyField label="Cidade" value={endereco.cidade} />
-                          <CheckoutReadonlyField label="UF" value={endereco.uf} />
-                        </div>
-                      </div>
+                      </label>
                     );
                   })
                 ) : (
