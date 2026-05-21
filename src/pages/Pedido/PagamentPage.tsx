@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Minus, Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { PageLayout } from "../../Components/PageLayout";
 import { Input } from "../../Components/Input";
 import { useCart } from "../../context/CartContext";
@@ -8,6 +8,7 @@ import {
   criarEndereco,
   listarEnderecos,
   listarTiposLogradouro,
+  removerEndereco,
   TIPOS_LOGRADOURO_FALLBACK,
   type EnderecoApiResponse,
   type TipoLogradouroOption,
@@ -38,6 +39,11 @@ type EnderecoFormState = {
   cidade: string;
   uf: string;
   isPrincipal: boolean;
+};
+
+type EnderecoExibicao = EnderecoApiResponse & {
+  assinatura: string;
+  idsAgrupados: number[];
 };
 
 const METODOS_PAGAMENTO: MetodoPagamento[] = [
@@ -135,15 +141,63 @@ function mapearEnderecoPerfilParaDetalhe(
   };
 }
 
-function obterEnderecoPrincipal(enderecos: EnderecoApiResponse[]) {
+function normalizarTextoEndereco(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function criarAssinaturaEndereco(endereco: EnderecoApiResponse) {
+  return [
+    normalizarTextoEndereco(endereco.tipoLogradouro),
+    normalizarTextoEndereco(endereco.nomeEndereco),
+    normalizarTextoEndereco(endereco.numero),
+    normalizarTextoEndereco(endereco.complemento),
+    normalizarTextoEndereco(endereco.cep),
+    normalizarTextoEndereco(endereco.cidade),
+    normalizarTextoEndereco(endereco.uf),
+  ].join("|");
+}
+
+function agruparEnderecos(enderecos: EnderecoApiResponse[]) {
+  const agrupados = new Map<string, EnderecoExibicao>();
+
+  for (const endereco of enderecos) {
+    const assinatura = criarAssinaturaEndereco(endereco);
+    const existente = agrupados.get(assinatura);
+
+    if (!existente) {
+      agrupados.set(assinatura, {
+        ...endereco,
+        assinatura,
+        idsAgrupados: [endereco.id],
+      });
+      continue;
+    }
+
+    existente.idsAgrupados.push(endereco.id);
+    existente.isPrincipal = existente.isPrincipal || endereco.isPrincipal;
+    existente.ativo = existente.ativo || endereco.ativo;
+
+    if ((!existente.complemento || !existente.complemento.trim()) && endereco.complemento?.trim()) {
+      existente.complemento = endereco.complemento;
+    }
+
+    if (endereco.isPrincipal) {
+      existente.id = endereco.id;
+    }
+  }
+
+  return Array.from(agrupados.values());
+}
+
+function obterEnderecoPrincipal<T extends { isPrincipal: boolean }>(enderecos: T[]) {
   return enderecos.find((endereco) => endereco.isPrincipal) ?? enderecos[0] ?? null;
 }
 
-function formatarResumoEndereco(endereco: EnderecoApiResponse) {
+function formatarResumoEndereco(endereco: EnderecoExibicao) {
   return `${endereco.tipoLogradouro} ${endereco.nomeEndereco}, ${endereco.numero}`;
 }
 
-function formatarDetalheEndereco(endereco: EnderecoApiResponse) {
+function formatarDetalheEndereco(endereco: EnderecoExibicao) {
   const partes = [`${endereco.cidade}, ${endereco.uf}`];
 
   if (endereco.complemento?.trim()) {
@@ -160,7 +214,7 @@ function formatarDetalheEndereco(endereco: EnderecoApiResponse) {
     partes.push("Principal");
   }
 
-  return partes.join(" • ");
+  return partes.join(" - ");
 }
 
 export function PagamentPage() {
@@ -176,16 +230,18 @@ export function PagamentPage() {
   const [tiposLogradouro, setTiposLogradouro] = useState<TipoLogradouroOption[]>(
     TIPOS_LOGRADOURO_FALLBACK,
   );
+  const [isRemovingAddress, setIsRemovingAddress] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [erro, setErro] = useState("");
   const { carrinhoItens, valorTotal, clearCart, estaAutenticado } = useCart();
   const navigate = useNavigate();
 
   const total = valorTotal;
-  const temEnderecoSalvo = enderecosSalvos.length > 0;
+  const enderecosExibidos = agruparEnderecos(enderecosSalvos);
+  const temEnderecoSalvo = enderecosExibidos.length > 0;
   const enderecoSelecionado =
-    enderecosSalvos.find((endereco) => endereco.id === enderecoSelecionadoId) ??
-    obterEnderecoPrincipal(enderecosSalvos);
+    enderecosExibidos.find((endereco) => endereco.id === enderecoSelecionadoId) ??
+    obterEnderecoPrincipal(enderecosExibidos);
   const tipoLogradouroPadrao =
     tiposLogradouro[0]?.codigo ?? ENDERECO_FORM_PADRAO.tipoLogradouro;
 
@@ -240,23 +296,24 @@ export function PagamentPage() {
 
         const tiposDisponiveis =
           tiposResponse.length > 0 ? tiposResponse : TIPOS_LOGRADOURO_FALLBACK;
-        const enderecosCarregados =
+        const enderecosCarregadosBrutos =
           enderecosDetalhados.length > 0
             ? enderecosDetalhados.filter((endereco) => endereco.ativo)
             : response.enderecos
                 .map(mapearEnderecoPerfilParaDetalhe)
                 .filter((endereco) => endereco.ativo);
+        const enderecosCarregados = agruparEnderecos(enderecosCarregadosBrutos);
         const enderecoPrincipal = obterEnderecoPrincipal(enderecosCarregados);
 
         setPerfil(response);
         setTiposLogradouro(tiposDisponiveis);
-        setEnderecosSalvos(enderecosCarregados);
+        setEnderecosSalvos(enderecosCarregadosBrutos);
         setEnderecoSelecionadoId(enderecoPrincipal?.id ?? null);
-        setMostrarNovoEnderecoForm(enderecosCarregados.length === 0);
+        setMostrarNovoEnderecoForm(enderecosCarregadosBrutos.length === 0);
         setEnderecoForm(
           criarEnderecoFormInicial(
             tiposDisponiveis[0]?.codigo ?? ENDERECO_FORM_PADRAO.tipoLogradouro,
-            enderecosCarregados.length === 0,
+            enderecosCarregadosBrutos.length === 0,
           ),
         );
       } catch (error) {
@@ -277,7 +334,7 @@ export function PagamentPage() {
     return () => {
       isMounted = false;
     };
-}, [estaAutenticado]);
+  }, [estaAutenticado]);
 
   function handleEnderecoChange(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = event.target;
@@ -314,6 +371,54 @@ export function PagamentPage() {
   function handleSelecionarEndereco(enderecoId: number) {
     setEnderecoSelecionadoId(enderecoId);
     setErro("");
+  }
+
+  async function handleRemoverEndereco(endereco: EnderecoExibicao) {
+    if (!perfil || isRemovingAddress || isSubmitting) {
+      return;
+    }
+
+    try {
+      setIsRemovingAddress(endereco.id);
+      setErro("");
+
+      await Promise.all(
+        endereco.idsAgrupados.map((enderecoId) => removerEndereco(perfil.id, enderecoId)),
+      );
+
+      const proximaLista = enderecosSalvos.filter(
+        (item) => !endereco.idsAgrupados.includes(item.id),
+      );
+      const proximosEnderecosExibidos = agruparEnderecos(proximaLista);
+      const proximoSelecionado =
+        enderecoSelecionadoId && endereco.idsAgrupados.includes(enderecoSelecionadoId)
+          ? obterEnderecoPrincipal(proximosEnderecosExibidos)?.id ?? null
+          : enderecoSelecionadoId;
+
+      setEnderecosSalvos(proximaLista);
+      setEnderecoSelecionadoId(proximoSelecionado);
+      setPerfil((currentProfile) =>
+        currentProfile
+          ? {
+              ...currentProfile,
+              enderecos: currentProfile.enderecos.filter(
+                (item) => !endereco.idsAgrupados.includes(item.id),
+              ),
+            }
+          : currentProfile,
+      );
+
+      if (proximosEnderecosExibidos.length === 0) {
+        setMostrarNovoEnderecoForm(true);
+        setEnderecoForm(criarEnderecoFormInicial(tipoLogradouroPadrao, true));
+      }
+    } catch (error) {
+      setErro(
+        error instanceof Error ? error.message : "Nao foi possivel remover o endereco.",
+      );
+    } finally {
+      setIsRemovingAddress(null);
+    }
   }
 
   function mapearFormaPagamentoId() {
@@ -522,40 +627,54 @@ export function PagamentPage() {
 
               <div className="space-y-4">
                 {temEnderecoSalvo ? (
-                  enderecosSalvos.map((endereco, index) => {
+                  enderecosExibidos.map((endereco) => {
                     const selecionado = enderecoSelecionado?.id === endereco.id;
 
                     return (
-                      <label
+                      <div
                         key={endereco.id}
-                        htmlFor={`endereco-salvo-${endereco.id}`}
-                        className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
+                        className={`flex items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
                           selecionado
                             ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_0_1px_rgba(250,204,21,0.20)]"
                             : "border-white/10 bg-black/20"
                         }`}
                       >
-                        <input
-                          id={`endereco-salvo-${endereco.id}`}
-                          type="radio"
-                          name="endereco-salvo"
-                          checked={selecionado}
-                          onChange={() => handleSelecionarEndereco(endereco.id)}
-                          className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
-                        />
+                        <label
+                          htmlFor={`endereco-salvo-${endereco.id}`}
+                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-4"
+                        >
+                          <input
+                            id={`endereco-salvo-${endereco.id}`}
+                            type="radio"
+                            name="endereco-salvo"
+                            checked={selecionado}
+                            onChange={() => handleSelecionarEndereco(endereco.id)}
+                            className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                          />
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                          <div className="min-w-0 flex-1">
                             <p className="font-semibold text-white">
                               {formatarResumoEndereco(endereco)}
                             </p>
-                            <span className="text-xs text-zinc-500">Endereco {index + 1}</span>
+                            <p className="mt-1 text-sm text-zinc-400">
+                              {formatarDetalheEndereco(endereco)}
+                            </p>
                           </div>
-                          <p className="mt-1 text-sm text-zinc-400">
-                            {formatarDetalheEndereco(endereco)}
-                          </p>
-                        </div>
-                      </label>
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleRemoverEndereco(endereco);
+                          }}
+                          disabled={isRemovingAddress === endereco.id}
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label="Remover endereco"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     );
                   })
                 ) : (
@@ -588,10 +707,9 @@ export function PagamentPage() {
                           <button
                             type="button"
                             onClick={handleCancelarNovoEndereco}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
-                            aria-label="Remover novo endereco"
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
                           >
-                            <Minus className="h-4 w-4" />
+                            Cancelar
                           </button>
                         ) : null}
                       </div>
@@ -621,7 +739,6 @@ export function PagamentPage() {
                         id="nomeEndereco"
                         name="nomeEndereco"
                         label="Nome do endereco"
-                        placeholder="Rua Flor de ouro"
                         value={enderecoForm.nomeEndereco}
                         onChange={handleEnderecoChange}
                         className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
@@ -630,7 +747,6 @@ export function PagamentPage() {
                         id="numero"
                         name="numero"
                         label="Numero"
-                        placeholder="249"
                         inputMode="numeric"
                         value={enderecoForm.numero}
                         onChange={handleEnderecoChange}
@@ -640,7 +756,6 @@ export function PagamentPage() {
                         id="complemento"
                         name="complemento"
                         label="Complemento"
-                        placeholder="Apto 12"
                         value={enderecoForm.complemento}
                         onChange={handleEnderecoChange}
                         className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
@@ -649,7 +764,6 @@ export function PagamentPage() {
                         id="cep"
                         name="cep"
                         label="CEP"
-                        placeholder="02281-010"
                         inputMode="numeric"
                         autoComplete="postal-code"
                         value={enderecoForm.cep}
@@ -660,7 +774,6 @@ export function PagamentPage() {
                         id="cidade"
                         name="cidade"
                         label="Cidade"
-                        placeholder="Sao Paulo"
                         autoComplete="address-level2"
                         value={enderecoForm.cidade}
                         onChange={handleEnderecoChange}
@@ -670,7 +783,6 @@ export function PagamentPage() {
                         id="uf"
                         name="uf"
                         label="UF"
-                        placeholder="SP"
                         autoComplete="address-level1"
                         maxLength={2}
                         value={enderecoForm.uf}
@@ -681,7 +793,7 @@ export function PagamentPage() {
 
                     {temEnderecoSalvo ? (
                       <p className="mt-4 text-sm text-zinc-400">
-                        Se voce fechar este formulario, o checkout volta a usar o endereco
+                        Se voce cancelar este formulario, o checkout volta a usar o endereco
                         selecionado acima.
                       </p>
                     ) : null}
