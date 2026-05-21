@@ -1,5 +1,6 @@
 import type { HomeProduct } from "../../types/home";
 import { apiRequest } from "../http/apiClient";
+import { getStoredProdutoImage } from "./produtoImageStorage";
 
 type ProdutoApiResponse = {
   id: number;
@@ -110,7 +111,9 @@ function extrairProdutoDaResposta(response: ProdutoMutacaoApiResponse) {
 
 function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
   const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
-  const imagemPrincipal = imagens[0] ?? criarImagemPlaceholder(produto.nome);
+  const imagemSalvaLocalmente = getStoredProdutoImage(produto.id);
+  const imagemPrincipal =
+    imagens[0] ?? imagemSalvaLocalmente ?? criarImagemPlaceholder(produto.nome);
 
   return {
     id: produto.id,

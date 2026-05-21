@@ -18,6 +18,10 @@ import {
   criarProduto,
   type ProdutoMutacaoPayload,
 } from "../../Services/produtos/produtoService";
+import {
+  removeStoredProdutoImage,
+  saveStoredProdutoImage,
+} from "../../Services/produtos/produtoImageStorage";
 import { getStoredUser, updateStoredUser } from "../../Services/auth/session";
 import {
   criarEndereco,
@@ -1360,10 +1364,18 @@ export function PerfilUsuarioPage() {
         imagens: produtoForm.imagemUrl.trim() ? [produtoForm.imagemUrl.trim()] : [],
       };
 
-      if (produtoForm.id) {
-        await atualizarProduto(produtoForm.id, payload);
-      } else {
-        await criarProduto(payload);
+      const produtoSalvo = produtoForm.id
+        ? await atualizarProduto(produtoForm.id, payload)
+        : await criarProduto(payload);
+
+      const produtoIdPersistido = produtoSalvo?.id ?? produtoForm.id;
+
+      if (produtoIdPersistido) {
+        if (produtoForm.imagemUrl.trim()) {
+          saveStoredProdutoImage(produtoIdPersistido, produtoForm.imagemUrl.trim());
+        } else {
+          removeStoredProdutoImage(produtoIdPersistido);
+        }
       }
 
       fecharModal();
