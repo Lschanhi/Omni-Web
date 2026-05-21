@@ -9,7 +9,12 @@ import type {
   UsuarioTelefonePerfil,
   UsuarioStatsData,
 } from "../types/perfil";
-import { AUTH_CHANGED_EVENT, isAuthenticated } from "../Services/auth/session";
+import {
+  AUTH_CHANGED_EVENT,
+  getStoredUser,
+  isAuthenticated,
+  updateStoredUser,
+} from "../Services/auth/session";
 import { listarProdutos } from "../Services/produtos/produtoService";
 import { listarEnderecos } from "../Services/user/enderecoService";
 import { obterMinhaLoja, type LojaGestaoApiResponse } from "../Services/user/lojaService";
@@ -185,6 +190,32 @@ function mapearStats(
   };
 }
 
+function sincronizarSessaoComPerfil(perfil: UsuarioPerfilApiResponse) {
+  const usuarioSessao = getStoredUser();
+
+  if (!usuarioSessao) {
+    return;
+  }
+
+  const nomeCompleto = `${perfil.nome} ${perfil.sobrenome}`.trim();
+  const avatarUrl = perfil.avatarUrl ?? null;
+
+  if (
+    usuarioSessao.nome === nomeCompleto &&
+    usuarioSessao.email === perfil.email &&
+    (usuarioSessao.avatarUrl ?? null) === avatarUrl
+  ) {
+    return;
+  }
+
+  updateStoredUser({
+    ...usuarioSessao,
+    nome: nomeCompleto,
+    email: perfil.email,
+    avatarUrl,
+  });
+}
+
 export function usePerfilUsuarioData() {
   const [usuario, setUsuario] = useState<UsuarioPerfil | null>(null);
   const [loja, setLoja] = useState<LojaGestaoApiResponse | null>(null);
@@ -280,6 +311,7 @@ export function usePerfilUsuarioData() {
         const telefones = mapearTelefones(perfil);
         const enderecos = mapearEnderecos(perfil, enderecosDetalhados);
 
+        sincronizarSessaoComPerfil(perfil);
         setUsuario(mapearUsuario(perfil, telefones, enderecos));
         setLoja(lojaAtual);
         setStats(mapearStats(metricas, compras.length, produtosDaLoja.length));
