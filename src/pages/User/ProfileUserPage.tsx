@@ -28,6 +28,11 @@ import {
   type TipoDocumentoFiscalLoja,
 } from "../../Services/user/lojaService";
 import {
+  getStoredLojaAvatar,
+  removeStoredLojaAvatar,
+  saveStoredLojaAvatar,
+} from "../../Services/user/lojaAvatarStorage";
+import {
   criarTelefone,
   removerTelefone,
   atualizarTelefone,
@@ -49,6 +54,7 @@ import type {
 } from "../../types/perfil";
 
 type ModalAberto = "avatar" | "perfil" | "loja" | null;
+type AvatarDestino = "usuario" | "loja";
 
 type PerfilFormState = {
   nome: string;
@@ -233,6 +239,8 @@ function criarCardLoja(
     nomeFantasia: string;
     descricao?: string | null;
     emailContato?: string | null;
+    avatarUrl?: string | null;
+    logoUrl?: string | null;
     numeroTelefone?: string | null;
     ativa: boolean;
     nomeEndereco?: string | null;
@@ -245,8 +253,8 @@ function criarCardLoja(
     email: string;
     telefone: string;
     endereco: string;
-    avatarUrl?: string;
   } | null,
+  avatarLojaUrl?: string,
 ): PerfilIdentityCardData | null {
   if (!loja) {
     return null;
@@ -258,8 +266,8 @@ function criarCardLoja(
     resumo:
       loja.descricao?.trim() ||
       "Esta aba mostra a apresentacao publica e os principais dados operacionais da loja.",
-    avatarUrl: usuario?.avatarUrl,
-    fotoHint: "Clique na foto para atualizar a imagem usada pela conta",
+    avatarUrl: avatarLojaUrl || loja.logoUrl || loja.avatarUrl || undefined,
+    fotoHint: "Clique na foto para alterar a imagem da loja",
     badge: loja.ativa ? "Loja ativa" : "Loja em configuracao",
     infoItems: [
       {
@@ -313,6 +321,26 @@ function criarStatsComprador(
       value: usuario?.contaVerificada ? "Verificada" : "Em ajuste",
     },
   ];
+}
+
+function resolverAvatarLoja(
+  loja: {
+    id: number;
+    avatarUrl?: string | null;
+    logoUrl?: string | null;
+  } | null,
+) {
+  if (!loja) {
+    return "";
+  }
+
+  const avatarDaApi = loja.logoUrl?.trim() || loja.avatarUrl?.trim() || "";
+
+  if (avatarDaApi) {
+    return avatarDaApi;
+  }
+
+  return getStoredLojaAvatar(loja.id) ?? "";
 }
 
 function criarStatsLoja(
@@ -610,7 +638,9 @@ export function PerfilUsuarioPage() {
   const [visaoAtiva, setVisaoAtiva] = useState<PerfilVisaoId>("comprador");
   const [modalAberto, setModalAberto] = useState<ModalAberto>(null);
   const [perfilForm, setPerfilForm] = useState<PerfilFormState>(PERFIL_FORM_INICIAL);
+  const [avatarDestino, setAvatarDestino] = useState<AvatarDestino>("usuario");
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarLojaUrl, setAvatarLojaUrl] = useState("");
   const [avatarNomeArquivo, setAvatarNomeArquivo] = useState("");
   const [avatarErroAcao, setAvatarErroAcao] = useState("");
   const [isSalvandoAvatar, setIsSalvandoAvatar] = useState(false);
@@ -643,7 +673,7 @@ export function PerfilUsuarioPage() {
   };
   const cardAtivo =
     visaoAtiva === "loja"
-      ? criarCardLoja(loja, usuario)
+      ? criarCardLoja(loja, usuario, avatarLojaUrl)
       : criarCardComprador(usuario, podeGerenciarLoja);
   const statsAtivos =
     visaoAtiva === "loja" ? criarStatsLoja(stats) : criarStatsComprador(usuario, stats);
@@ -654,6 +684,16 @@ export function PerfilUsuarioPage() {
       ? loja?.descricao?.trim() ||
         "Acompanhe a identidade publica da loja, os indicadores e os itens da vitrine em um painel separado do perfil de comprador."
       : "Acompanhe seus dados de comprador, edite informacoes pessoais e consulte o historico de compras em um painel separado da loja.";
+  const editandoFotoLoja = avatarDestino === "loja";
+  const tituloModalAvatar = editandoFotoLoja ? "Foto da loja" : "Foto do perfil";
+  const descricaoModalAvatar = editandoFotoLoja
+    ? "Escolha uma imagem do seu computador para representar a loja separadamente do perfil neste navegador."
+    : "Escolha uma imagem do seu computador para usar como foto do perfil neste navegador.";
+  const altPreviewAvatar = editandoFotoLoja
+    ? "Preview da foto da loja"
+    : "Preview da foto do perfil";
+  const labelRemoverAvatar = editandoFotoLoja ? "Remover foto da loja" : "Remover foto";
+  const labelSalvarAvatar = editandoFotoLoja ? "Salvar foto da loja" : "Salvar foto";
 
   useEffect(() => {
     if (!temLoja && visaoAtiva === "loja") {
@@ -666,6 +706,10 @@ export function PerfilUsuarioPage() {
       setAbaAtiva(abasDisponiveis[0]?.id as PerfilTabId);
     }
   }, [abaAtiva, abasDisponiveis, setAbaAtiva]);
+
+  useEffect(() => {
+    setAvatarLojaUrl(resolverAvatarLoja(loja));
+  }, [loja]);
 
   useEffect(() => {
     if (!usuario) {
@@ -698,6 +742,7 @@ export function PerfilUsuarioPage() {
 
   function fecharModal() {
     setModalAberto(null);
+    setAvatarDestino("usuario");
     setAvatarPreview("");
     setAvatarNomeArquivo("");
     setAvatarErroAcao("");
@@ -714,8 +759,11 @@ export function PerfilUsuarioPage() {
       return;
     }
 
+    const editandoFotoLoja = visaoAtiva === "loja" && Boolean(loja);
+
     setAvatarErroAcao("");
-    setAvatarPreview(usuario.avatarUrl ?? "");
+    setAvatarDestino(editandoFotoLoja ? "loja" : "usuario");
+    setAvatarPreview(editandoFotoLoja ? avatarLojaUrl : usuario.avatarUrl ?? "");
     setAvatarNomeArquivo("");
     setModalAberto("avatar");
   }
@@ -941,7 +989,7 @@ export function PerfilUsuarioPage() {
     }
 
     if (file.size > MAX_AVATAR_FILE_SIZE) {
-      setAvatarErroAcao("Escolha uma imagem de ate 2 MB para o perfil.");
+      setAvatarErroAcao("Escolha uma imagem de ate 2 MB.");
       return;
     }
 
@@ -973,8 +1021,33 @@ export function PerfilUsuarioPage() {
     try {
       setIsSalvandoAvatar(true);
       setAvatarErroAcao("");
+      const temNovaImagem = Boolean(avatarPreview);
 
-      if (avatarPreview) {
+      if (avatarDestino === "loja") {
+        if (!loja) {
+          fecharModal();
+          return;
+        }
+
+        if (temNovaImagem) {
+          saveStoredLojaAvatar(loja.id, avatarPreview);
+          setAvatarLojaUrl(avatarPreview);
+        } else {
+          if (!avatarLojaUrl) {
+            fecharModal();
+            return;
+          }
+
+          removeStoredLojaAvatar(loja.id);
+          setAvatarLojaUrl(loja.logoUrl?.trim() || loja.avatarUrl?.trim() || "");
+        }
+
+        fecharModal();
+        alert(temNovaImagem ? "Foto da loja atualizada com sucesso!" : "Foto da loja removida com sucesso!");
+        return;
+      }
+
+      if (temNovaImagem) {
         const response = await atualizarFotoPerfil({
           dataUrl: avatarPreview,
           nomeArquivo: avatarNomeArquivo || undefined,
@@ -1006,10 +1079,10 @@ export function PerfilUsuarioPage() {
 
       fecharModal();
       recarregarDados();
-      alert(avatarPreview ? "Foto do perfil atualizada com sucesso!" : "Foto do perfil removida com sucesso!");
+      alert(temNovaImagem ? "Foto do perfil atualizada com sucesso!" : "Foto do perfil removida com sucesso!");
     } catch (error) {
       setAvatarErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel salvar a foto do perfil.",
+        error instanceof Error ? error.message : "Nao foi possivel salvar a foto.",
       );
     } finally {
       setIsSalvandoAvatar(false);
@@ -1392,8 +1465,8 @@ export function PerfilUsuarioPage() {
 
       <ProfileModal
         isOpen={modalAberto === "avatar"}
-        title="Foto do perfil"
-        description="Escolha uma imagem do seu computador para usar como foto do perfil neste navegador."
+        title={tituloModalAvatar}
+        description={descricaoModalAvatar}
         onClose={fecharModal}
       >
         <div className="space-y-5">
@@ -1401,12 +1474,12 @@ export function PerfilUsuarioPage() {
             {avatarPreview ? (
               <img
                 src={avatarPreview}
-                alt="Preview da foto do perfil"
+                alt={altPreviewAvatar}
                 className="h-32 w-32 rounded-full border-4 border-yellow-400 object-cover"
               />
             ) : (
               <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-dashed border-yellow-400/40 bg-black text-sm font-medium text-neutral-400">
-                Sem foto
+                {editandoFotoLoja ? "Sem foto da loja" : "Sem foto"}
               </div>
             )}
 
@@ -1414,7 +1487,9 @@ export function PerfilUsuarioPage() {
               <div className="flex flex-col items-center gap-3">
                 <ImagePlus className="h-6 w-6" />
                 <div className="space-y-1">
-                  <p className="font-medium text-white">Selecionar imagem</p>
+                  <p className="font-medium text-white">
+                    {editandoFotoLoja ? "Selecionar imagem da loja" : "Selecionar imagem"}
+                  </p>
                   <p className="text-xs text-neutral-300">
                     PNG, JPG ou WebP com ate 2 MB
                   </p>
@@ -1450,7 +1525,7 @@ export function PerfilUsuarioPage() {
                 className="h-11 border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/20 sm:w-auto sm:px-6"
                 icon={<Trash2 className="h-4 w-4" />}
               >
-                Remover foto
+                {labelRemoverAvatar}
               </Botao>
             </div>
 
@@ -1460,7 +1535,7 @@ export function PerfilUsuarioPage() {
               onClick={handleSalvarAvatar}
               className="h-11 sm:w-auto sm:px-6"
             >
-              {isSalvandoAvatar ? "Salvando..." : "Salvar foto"}
+              {isSalvandoAvatar ? "Salvando..." : labelSalvarAvatar}
             </Botao>
           </div>
         </div>

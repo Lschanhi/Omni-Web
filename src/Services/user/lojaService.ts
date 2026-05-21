@@ -7,6 +7,8 @@ export type LojaGestaoApiResponse = {
   usuarioId: number;
   nomeFantasia: string;
   slug: string;
+  avatarUrl?: string | null;
+  logoUrl?: string | null;
   tipoDocumentoFiscal: TipoDocumentoFiscalLoja;
   documentoFiscal: string;
   documentoFiscalFormatado: string;

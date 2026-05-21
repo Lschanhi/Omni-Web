@@ -40,6 +40,8 @@ export function UserCard({
   primaryAction,
   secondaryAction,
 }: UserCardProps) {
+  const descricaoFoto = card?.rotulo ? `Alterar foto de ${card.rotulo.toLowerCase()}` : "Alterar foto";
+
   return (
     <ProfileSection className="h-full">
       <div className="flex flex-col gap-6">
@@ -48,12 +50,12 @@ export function UserCard({
             type="button"
             onClick={onEditAvatar}
             className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/70"
-            aria-label="Alterar foto do perfil"
+            aria-label={descricaoFoto}
           >
             {card?.avatarUrl ? (
               <img
                 src={card.avatarUrl}
-                alt={`Avatar de ${card.nome}`}
+                alt={`Imagem de ${card.nome}`}
                 className="h-54 w-40 rounded-full border-4 border-yellow-400 object-cover transition group-hover:brightness-75 sm:h-54 sm:w-60"
               />
             ) : (
