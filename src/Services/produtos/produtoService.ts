@@ -19,6 +19,16 @@ type ProdutoApiResponse = {
   imagens: string[];
 };
 
+type ProdutoMutacaoApiResponse =
+  | ProdutoApiResponse
+  | {
+      mensagem?: string;
+      produto?: ProdutoApiResponse | null;
+      data?: ProdutoApiResponse | null;
+    }
+  | null
+  | undefined;
+
 export type ProdutoMutacaoPayload = {
   nome: string;
   categoria: string;
@@ -64,8 +74,42 @@ function criarImagemPlaceholder(label: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function isProdutoApiResponse(value: unknown): value is ProdutoApiResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const produto = value as Partial<ProdutoApiResponse>;
+
+  return (
+    typeof produto.id === "number" &&
+    typeof produto.nome === "string" &&
+    typeof produto.categoria === "string"
+  );
+}
+
+function extrairProdutoDaResposta(response: ProdutoMutacaoApiResponse) {
+  if (isProdutoApiResponse(response)) {
+    return response;
+  }
+
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+
+  if (isProdutoApiResponse(response.produto)) {
+    return response.produto;
+  }
+
+  if (isProdutoApiResponse(response.data)) {
+    return response.data;
+  }
+
+  return null;
+}
+
 function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
-  const imagens = produto.imagens.filter(Boolean);
+  const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
   const imagemPrincipal = imagens[0] ?? criarImagemPlaceholder(produto.nome);
 
   return {
@@ -103,21 +147,23 @@ export async function obterProdutoPorId(id: number) {
 }
 
 export async function criarProduto(payload: ProdutoMutacaoPayload) {
-  const produto = await apiRequest<ProdutoApiResponse>("/api/produto", {
+  const response = await apiRequest<ProdutoMutacaoApiResponse>("/api/produto", {
     method: "POST",
     authenticated: true,
     body: payload,
   });
 
-  return mapearProduto(produto);
+  const produto = extrairProdutoDaResposta(response);
+  return produto ? mapearProduto(produto) : null;
 }
 
 export async function atualizarProduto(id: number, payload: ProdutoMutacaoPayload) {
-  const produto = await apiRequest<ProdutoApiResponse>(`/api/produto/${id}`, {
+  const response = await apiRequest<ProdutoMutacaoApiResponse>(`/api/produto/${id}`, {
     method: "PUT",
     authenticated: true,
     body: payload,
   });
 
-  return mapearProduto(produto);
+  const produto = extrairProdutoDaResposta(response);
+  return produto ? mapearProduto(produto) : null;
 }
