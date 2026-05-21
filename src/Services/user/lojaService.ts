@@ -6,7 +6,7 @@ export type LojaGestaoApiResponse = {
   id: number;
   usuarioId: number;
   nomeFantasia: string;
-  slug: string;
+  slug?: string | null;
   avatarUrl?: string | null;
   logoUrl?: string | null;
   tipoDocumentoFiscal: TipoDocumentoFiscalLoja;
@@ -33,7 +33,6 @@ export type LojaGestaoApiResponse = {
 
 export type LojaMutacaoPayload = {
   nomeFantasia: string;
-  slug?: string;
   tipoDocumentoFiscal: TipoDocumentoFiscalLoja;
   documentoFiscal: string;
   descricao?: string;

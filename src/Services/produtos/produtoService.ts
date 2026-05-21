@@ -5,7 +5,7 @@ type ProdutoApiResponse = {
   id: number;
   nome: string;
   categoria: string;
-  sku: string;
+  sku?: string;
   preco: number;
   estoque: number;
   disponivel: boolean;
@@ -22,7 +22,6 @@ type ProdutoApiResponse = {
 export type ProdutoMutacaoPayload = {
   nome: string;
   categoria: string;
-  sku: string;
   preco: number;
   estoque: number;
   disponivel: boolean;

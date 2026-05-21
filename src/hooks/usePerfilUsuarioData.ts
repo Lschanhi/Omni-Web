@@ -289,7 +289,6 @@ export function usePerfilUsuarioData() {
                 produtoId: produto.id,
                 categoriaId: produto.categoriaId,
                 categoriaNome: produto.categoriaNome,
-                sku: produto.sku,
                 precoNumero: produto.preco,
                 estoque: produto.estoque,
                 disponivel: produto.disponivel,

@@ -89,7 +89,6 @@ type PerfilEnderecoFormState = {
 
 type LojaFormState = {
   nomeFantasia: string;
-  slug: string;
   tipoDocumentoFiscal: `${TipoDocumentoFiscalLoja}`;
   documentoFiscal: string;
   descricao: string;
@@ -101,7 +100,6 @@ type ProdutoFormState = {
   id?: number;
   nome: string;
   categoria: string;
-  sku: string;
   preco: string;
   estoque: string;
   descricao: string;
@@ -140,7 +138,6 @@ const ENDERECO_FORM_INICIAL: PerfilEnderecoFormState = {
 
 const LOJA_FORM_INICIAL: LojaFormState = {
   nomeFantasia: "",
-  slug: "",
   tipoDocumentoFiscal: "1",
   documentoFiscal: "",
   descricao: "",
@@ -151,7 +148,6 @@ const LOJA_FORM_INICIAL: LojaFormState = {
 const PRODUTO_FORM_INICIAL: ProdutoFormState = {
   nome: "",
   categoria: "",
-  sku: "",
   preco: "",
   estoque: "0",
   descricao: "",
@@ -160,6 +156,7 @@ const PRODUTO_FORM_INICIAL: ProdutoFormState = {
 };
 
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
+const MAX_PRODUCT_IMAGE_FILE_SIZE = 2 * 1024 * 1024;
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -230,7 +227,6 @@ function criarProdutoForm(item?: PerfilGridItem): ProdutoFormState {
     id: item.produtoId,
     nome: item.titulo,
     categoria: item.categoriaNome ?? item.subtitulo ?? "",
-    sku: item.sku ?? "",
     preco: normalizarPrecoParaInput(item.precoNumero),
     estoque: String(item.estoque ?? 0),
     descricao: item.descricao ?? "",
@@ -940,7 +936,6 @@ export function PerfilUsuarioPage() {
       loja
         ? {
             nomeFantasia: loja.nomeFantasia,
-            slug: loja.slug,
             tipoDocumentoFiscal: String(loja.tipoDocumentoFiscal) as `${TipoDocumentoFiscalLoja}`,
             documentoFiscal: loja.documentoFiscalFormatado || loja.documentoFiscal,
             descricao: loja.descricao ?? "",
@@ -949,7 +944,6 @@ export function PerfilUsuarioPage() {
           }
         : {
             nomeFantasia: usuario.nome,
-            slug: "",
             tipoDocumentoFiscal: "1",
             documentoFiscal: "",
             descricao: "",
@@ -1290,6 +1284,47 @@ export function PerfilUsuarioPage() {
     setProdutoErroAcao("");
   }
 
+  async function handleProdutoImagemSelecionada(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setProdutoErroAcao("Selecione um arquivo de imagem valido para o produto.");
+      return;
+    }
+
+    if (file.size > MAX_PRODUCT_IMAGE_FILE_SIZE) {
+      setProdutoErroAcao("Escolha uma imagem de ate 2 MB para o produto.");
+      return;
+    }
+
+    try {
+      const dataUrl = await lerArquivoComoDataUrl(file);
+      setProdutoForm((currentData) => ({
+        ...currentData,
+        imagemUrl: dataUrl,
+      }));
+      setProdutoErroAcao("");
+    } catch (error) {
+      setProdutoErroAcao(
+        error instanceof Error ? error.message : "Nao foi possivel carregar a imagem do produto.",
+      );
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function handleRemoverImagemProduto() {
+    setProdutoForm((currentData) => ({
+      ...currentData,
+      imagemUrl: "",
+    }));
+    setProdutoErroAcao("");
+  }
+
   async function handleSalvarProduto(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -1309,10 +1344,6 @@ export function PerfilUsuarioPage() {
         throw new Error("Informe a categoria do produto.");
       }
 
-      if (!produtoForm.sku.trim()) {
-        throw new Error("Informe o SKU do produto.");
-      }
-
       const estoque = Number(produtoForm.estoque);
 
       if (!Number.isInteger(estoque) || estoque < 0) {
@@ -1322,7 +1353,6 @@ export function PerfilUsuarioPage() {
       const payload: ProdutoMutacaoPayload = {
         nome: produtoForm.nome.trim(),
         categoria: produtoForm.categoria.trim(),
-        sku: produtoForm.sku.trim(),
         preco: normalizarPrecoParaApi(produtoForm.preco),
         estoque,
         disponivel: produtoForm.disponivel,
@@ -1463,7 +1493,6 @@ export function PerfilUsuarioPage() {
       if (loja && telefoneLojaRemovido) {
         await atualizarMinhaLoja({
           nomeFantasia: loja.nomeFantasia,
-          slug: loja.slug || undefined,
           tipoDocumentoFiscal: loja.tipoDocumentoFiscal,
           documentoFiscal: loja.documentoFiscal,
           descricao: loja.descricao ?? undefined,
@@ -1521,7 +1550,6 @@ export function PerfilUsuarioPage() {
 
       const payload = {
         nomeFantasia: lojaForm.nomeFantasia.trim(),
-        slug: lojaForm.slug.trim() || undefined,
         tipoDocumentoFiscal: Number(lojaForm.tipoDocumentoFiscal) as TipoDocumentoFiscalLoja,
         documentoFiscal: lojaForm.documentoFiscal.trim(),
         descricao: lojaForm.descricao.trim() || undefined,
@@ -2338,16 +2366,6 @@ export function PerfilUsuarioPage() {
             />
 
             <Input
-              label="SKU"
-              id="produtoSku"
-              name="sku"
-              placeholder="MOUSE-RGB-01"
-              value={produtoForm.sku}
-              onChange={handleProdutoInputChange}
-              required
-            />
-
-            <Input
               label="Preco"
               id="produtoPreco"
               name="preco"
@@ -2368,15 +2386,61 @@ export function PerfilUsuarioPage() {
               onChange={handleProdutoInputChange}
               required
             />
+          </div>
 
-            <Input
-              label="Imagem principal (URL)"
-              id="produtoImagemUrl"
-              name="imagemUrl"
-              placeholder="https://..."
-              value={produtoForm.imagemUrl}
-              onChange={handleProdutoInputChange}
-            />
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-white">Imagem principal</p>
+                <p className="text-xs text-neutral-400">
+                  Envie uma foto do produto em PNG, JPG ou WebP com ate 2 MB.
+                </p>
+              </div>
+
+              {produtoForm.imagemUrl ? (
+                <button
+                  type="button"
+                  onClick={handleRemoverImagemProduto}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
+                  aria-label="Remover imagem do produto"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+              <div className="flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                {produtoForm.imagemUrl ? (
+                  <img
+                    src={produtoForm.imagemUrl}
+                    alt={`Preview do produto ${produtoForm.nome || "selecionado"}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="px-4 text-center text-xs uppercase tracking-[0.22em] text-neutral-500">
+                    Sem imagem
+                  </span>
+                )}
+              </div>
+
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-yellow-400/30 bg-yellow-400/10 px-4 py-6 text-center text-sm text-yellow-100 transition hover:border-yellow-400/50 hover:bg-yellow-400/15">
+                <ImagePlus className="h-6 w-6" />
+                <div className="space-y-1">
+                  <p className="font-medium text-white">Selecionar foto do produto</p>
+                  <p className="text-xs text-neutral-300">
+                    O arquivo escolhido ja sera usado no cadastro.
+                  </p>
+                </div>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProdutoImagemSelecionada}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -2438,7 +2502,7 @@ export function PerfilUsuarioPage() {
         onClose={fecharModal}
       >
         <form className="space-y-5" onSubmit={handleSalvarLoja}>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-1">
             <Input
               label="Nome fantasia"
               id="nomeFantasia"
@@ -2448,15 +2512,6 @@ export function PerfilUsuarioPage() {
               onChange={handleLojaInputChange}
               icon={<Store className="h-5 w-5" />}
               required
-            />
-
-            <Input
-              label="Slug (opcional)"
-              id="slug"
-              name="slug"
-              placeholder="minha-loja"
-              value={lojaForm.slug}
-              onChange={handleLojaInputChange}
             />
           </div>
 

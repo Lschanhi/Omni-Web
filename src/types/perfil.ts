@@ -88,7 +88,6 @@ export interface PerfilGridItem {
   produtoId?: number;
   categoriaId?: string;
   categoriaNome?: string;
-  sku?: string;
   precoNumero?: number;
   estoque?: number;
   disponivel?: boolean;
