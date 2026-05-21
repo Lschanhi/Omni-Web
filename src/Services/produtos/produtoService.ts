@@ -19,6 +19,17 @@ type ProdutoApiResponse = {
   imagens: string[];
 };
 
+export type ProdutoMutacaoPayload = {
+  nome: string;
+  categoria: string;
+  sku: string;
+  preco: number;
+  estoque: number;
+  disponivel: boolean;
+  descricao?: string;
+  imagens?: string[];
+};
+
 function normalizarTexto(valor: string) {
   return valor
     .normalize("NFD")
@@ -89,5 +100,25 @@ export async function listarProdutos() {
 
 export async function obterProdutoPorId(id: number) {
   const produto = await apiRequest<ProdutoApiResponse>(`/api/produto/${id}`);
+  return mapearProduto(produto);
+}
+
+export async function criarProduto(payload: ProdutoMutacaoPayload) {
+  const produto = await apiRequest<ProdutoApiResponse>("/api/produto", {
+    method: "POST",
+    authenticated: true,
+    body: payload,
+  });
+
+  return mapearProduto(produto);
+}
+
+export async function atualizarProduto(id: number, payload: ProdutoMutacaoPayload) {
+  const produto = await apiRequest<ProdutoApiResponse>(`/api/produto/${id}`, {
+    method: "PUT",
+    authenticated: true,
+    body: payload,
+  });
+
   return mapearProduto(produto);
 }

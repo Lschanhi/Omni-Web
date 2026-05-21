@@ -13,6 +13,11 @@ import { UserCard } from "../../Components/perfil/UserCard";
 import { UserStats } from "../../Components/perfil/UserStats";
 import { UserTabs, type UserTabOption } from "../../Components/perfil/UserTabs";
 import { usePerfilUsuarioData } from "../../hooks/usePerfilUsuarioData";
+import {
+  atualizarProduto,
+  criarProduto,
+  type ProdutoMutacaoPayload,
+} from "../../Services/produtos/produtoService";
 import { getStoredUser, updateStoredUser } from "../../Services/auth/session";
 import {
   criarEndereco,
@@ -44,6 +49,7 @@ import {
   removerFotoPerfil,
 } from "../../Services/user/usuarioService";
 import type {
+  PerfilGridItem,
   PerfilIdentityCardData,
   PerfilStatCardItem,
   PerfilTabContent,
@@ -53,7 +59,7 @@ import type {
   UsuarioTelefonePerfil,
 } from "../../types/perfil";
 
-type ModalAberto = "avatar" | "perfil" | "loja" | null;
+type ModalAberto = "avatar" | "perfil" | "loja" | "produto" | null;
 type AvatarDestino = "usuario" | "loja";
 
 type PerfilFormState = {
@@ -91,6 +97,24 @@ type LojaFormState = {
   ativa: boolean;
 };
 
+type ProdutoFormState = {
+  id?: number;
+  nome: string;
+  categoria: string;
+  sku: string;
+  preco: string;
+  estoque: string;
+  descricao: string;
+  imagemUrl: string;
+  disponivel: boolean;
+};
+
+type CategoriaLojaOption = {
+  id: string;
+  nome: string;
+  totalProdutos: number;
+};
+
 const PERFIL_FORM_INICIAL: PerfilFormState = {
   nome: "",
   sobrenome: "",
@@ -122,6 +146,17 @@ const LOJA_FORM_INICIAL: LojaFormState = {
   descricao: "",
   emailContato: "",
   ativa: true,
+};
+
+const PRODUTO_FORM_INICIAL: ProdutoFormState = {
+  nome: "",
+  categoria: "",
+  sku: "",
+  preco: "",
+  estoque: "0",
+  descricao: "",
+  imagemUrl: "",
+  disponivel: true,
 };
 
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
@@ -166,6 +201,70 @@ const TAB_METADATA: Record<PerfilTabId, Omit<PerfilTabContent, "itens">> = {
 
 function formatarMoeda(valor: number) {
   return currencyFormatter.format(Number(valor ?? 0));
+}
+
+function normalizarPrecoParaInput(valor?: number) {
+  if (typeof valor !== "number" || Number.isNaN(valor)) {
+    return "";
+  }
+
+  return valor.toFixed(2).replace(".", ",");
+}
+
+function normalizarPrecoParaApi(valor: string) {
+  const valorNormalizado = Number(valor.replace(/\./g, "").replace(",", "."));
+
+  if (!Number.isFinite(valorNormalizado) || valorNormalizado < 0) {
+    throw new Error("Informe um preco valido para o produto.");
+  }
+
+  return valorNormalizado;
+}
+
+function criarProdutoForm(item?: PerfilGridItem): ProdutoFormState {
+  if (!item) {
+    return PRODUTO_FORM_INICIAL;
+  }
+
+  return {
+    id: item.produtoId,
+    nome: item.titulo,
+    categoria: item.categoriaNome ?? item.subtitulo ?? "",
+    sku: item.sku ?? "",
+    preco: normalizarPrecoParaInput(item.precoNumero),
+    estoque: String(item.estoque ?? 0),
+    descricao: item.descricao ?? "",
+    imagemUrl: item.imagens?.[0] ?? item.imagemUrl ?? "",
+    disponivel: item.disponivel ?? true,
+  };
+}
+
+function criarCategoriasDaLoja(itens: PerfilGridItem[]): CategoriaLojaOption[] {
+  const categorias = new Map<string, CategoriaLojaOption>();
+
+  itens.forEach((item) => {
+    const categoriaId = item.categoriaId ?? item.categoriaNome ?? item.subtitulo;
+    const categoriaNome = item.categoriaNome ?? item.subtitulo;
+
+    if (!categoriaId || !categoriaNome) {
+      return;
+    }
+
+    const atual = categorias.get(categoriaId);
+
+    if (atual) {
+      atual.totalProdutos += 1;
+      return;
+    }
+
+    categorias.set(categoriaId, {
+      id: categoriaId,
+      nome: categoriaNome,
+      totalProdutos: 1,
+    });
+  });
+
+  return Array.from(categorias.values()).sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
 function formatarAvaliacaoMedia(avaliacaoMedia: number) {
@@ -651,15 +750,21 @@ export function PerfilUsuarioPage() {
   const [novoEnderecoForm, setNovoEnderecoForm] = useState<PerfilEnderecoFormState | null>(null);
   const [enderecosRemovidos, setEnderecosRemovidos] = useState<number[]>([]);
   const [lojaForm, setLojaForm] = useState<LojaFormState>(LOJA_FORM_INICIAL);
+  const [produtoForm, setProdutoForm] = useState<ProdutoFormState>(PRODUTO_FORM_INICIAL);
   const [tiposLogradouro, setTiposLogradouro] = useState<TipoLogradouroOption[]>(
     TIPOS_LOGRADOURO_FALLBACK,
   );
   const [perfilErroAcao, setPerfilErroAcao] = useState("");
   const [lojaErroAcao, setLojaErroAcao] = useState("");
+  const [produtoErroAcao, setProdutoErroAcao] = useState("");
   const [isSalvandoPerfil, setIsSalvandoPerfil] = useState(false);
   const [isSalvandoLoja, setIsSalvandoLoja] = useState(false);
+  const [isSalvandoProduto, setIsSalvandoProduto] = useState(false);
+  const [categoriaLojaAtiva, setCategoriaLojaAtiva] = useState("todas");
 
   const podeGerenciarLoja = Boolean(usuario?.enderecoPrincipalId && usuario?.telefonePrincipalId);
+  const produtosDaLoja = tabItems.produtos;
+  const categoriasDaLoja = criarCategoriasDaLoja(produtosDaLoja);
   const visoesDisponiveis = temLoja
     ? VIEW_TABS
     : VIEW_TABS.filter((visao) => visao.id !== "loja");
@@ -667,10 +772,16 @@ export function PerfilUsuarioPage() {
   const abaAtivaResolvida = abasDisponiveis.some((aba) => aba.id === abaAtiva)
     ? (abaAtiva as PerfilTabId)
     : (abasDisponiveis[0]?.id as PerfilTabId);
+  const isStoreProductsTab = visaoAtiva === "loja" && abaAtivaResolvida === "produtos";
   const tabContent: PerfilTabContent = {
     ...TAB_METADATA[abaAtivaResolvida],
     itens: tabItems[abaAtivaResolvida],
   };
+  const itensExibidos =
+    isStoreProductsTab && categoriaLojaAtiva !== "todas"
+      ? tabContent.itens.filter((item) => item.categoriaId === categoriaLojaAtiva)
+      : tabContent.itens;
+  const estaFiltrandoCategoria = isStoreProductsTab && categoriaLojaAtiva !== "todas";
   const cardAtivo =
     visaoAtiva === "loja"
       ? criarCardLoja(loja, usuario, avatarLojaUrl)
@@ -694,6 +805,10 @@ export function PerfilUsuarioPage() {
     : "Preview da foto do perfil";
   const labelRemoverAvatar = editandoFotoLoja ? "Remover foto da loja" : "Remover foto";
   const labelSalvarAvatar = editandoFotoLoja ? "Salvar foto da loja" : "Salvar foto";
+  const tituloModalProduto = produtoForm.id ? "Editar produto" : "Adicionar produto";
+  const descricaoModalProduto = produtoForm.id
+    ? "Atualize os dados do produto selecionado sem sair do painel da loja."
+    : "Cadastre um novo produto para publica-lo na vitrine da loja.";
 
   useEffect(() => {
     if (!temLoja && visaoAtiva === "loja") {
@@ -706,6 +821,20 @@ export function PerfilUsuarioPage() {
       setAbaAtiva(abasDisponiveis[0]?.id as PerfilTabId);
     }
   }, [abaAtiva, abasDisponiveis, setAbaAtiva]);
+
+  useEffect(() => {
+    if (!isStoreProductsTab) {
+      setCategoriaLojaAtiva("todas");
+      return;
+    }
+
+    if (
+      categoriaLojaAtiva !== "todas" &&
+      !categoriasDaLoja.some((categoria) => categoria.id === categoriaLojaAtiva)
+    ) {
+      setCategoriaLojaAtiva("todas");
+    }
+  }, [categoriaLojaAtiva, categoriasDaLoja, isStoreProductsTab]);
 
   useEffect(() => {
     setAvatarLojaUrl(resolverAvatarLoja(loja));
@@ -748,6 +877,8 @@ export function PerfilUsuarioPage() {
     setAvatarErroAcao("");
     setPerfilErroAcao("");
     setLojaErroAcao("");
+    setProdutoErroAcao("");
+    setProdutoForm(PRODUTO_FORM_INICIAL);
     setNovoTelefoneForm(null);
     setNovoEnderecoForm(null);
     setTelefonesRemovidos([]);
@@ -827,6 +958,12 @@ export function PerfilUsuarioPage() {
           },
     );
     setModalAberto("loja");
+  }
+
+  function abrirModalProduto(item?: PerfilGridItem) {
+    setProdutoErroAcao("");
+    setProdutoForm(criarProdutoForm(item));
+    setModalAberto("produto");
   }
 
   function handlePerfilInputChange(event: ChangeEvent<HTMLInputElement>) {
@@ -1133,6 +1270,85 @@ export function PerfilUsuarioPage() {
     setLojaErroAcao("");
   }
 
+  function handleProdutoInputChange(
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) {
+    const { name, value } = event.target;
+
+    setProdutoForm((currentData) => ({
+      ...currentData,
+      [name]: value,
+    }));
+    setProdutoErroAcao("");
+  }
+
+  function handleProdutoDisponivelChange(event: ChangeEvent<HTMLInputElement>) {
+    setProdutoForm((currentData) => ({
+      ...currentData,
+      disponivel: event.target.checked,
+    }));
+    setProdutoErroAcao("");
+  }
+
+  async function handleSalvarProduto(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSalvandoProduto) {
+      return;
+    }
+
+    try {
+      setIsSalvandoProduto(true);
+      setProdutoErroAcao("");
+
+      if (!produtoForm.nome.trim()) {
+        throw new Error("Informe o nome do produto.");
+      }
+
+      if (!produtoForm.categoria.trim()) {
+        throw new Error("Informe a categoria do produto.");
+      }
+
+      if (!produtoForm.sku.trim()) {
+        throw new Error("Informe o SKU do produto.");
+      }
+
+      const estoque = Number(produtoForm.estoque);
+
+      if (!Number.isInteger(estoque) || estoque < 0) {
+        throw new Error("Informe um estoque valido para o produto.");
+      }
+
+      const payload: ProdutoMutacaoPayload = {
+        nome: produtoForm.nome.trim(),
+        categoria: produtoForm.categoria.trim(),
+        sku: produtoForm.sku.trim(),
+        preco: normalizarPrecoParaApi(produtoForm.preco),
+        estoque,
+        disponivel: produtoForm.disponivel,
+        descricao: produtoForm.descricao.trim() || undefined,
+        imagens: produtoForm.imagemUrl.trim() ? [produtoForm.imagemUrl.trim()] : [],
+      };
+
+      if (produtoForm.id) {
+        await atualizarProduto(produtoForm.id, payload);
+      } else {
+        await criarProduto(payload);
+      }
+
+      fecharModal();
+      setAbaAtiva("produtos");
+      recarregarDados();
+      alert(produtoForm.id ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!");
+    } catch (error) {
+      setProdutoErroAcao(
+        error instanceof Error ? error.message : "Nao foi possivel salvar o produto.",
+      );
+    } finally {
+      setIsSalvandoProduto(false);
+    }
+  }
+
   async function handleSalvarPerfil(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -1432,11 +1648,80 @@ export function PerfilUsuarioPage() {
               <ProfileSection title={tabContent.titulo} description={tabContent.descricao}>
                 {/* Controla a troca de abas e o recarregamento dinamico do conteudo. */}
                 <div className="space-y-5">
-                  <UserTabs
-                    abaAtiva={abaAtivaResolvida}
-                    tabs={abasDisponiveis}
-                    onChange={(aba) => setAbaAtiva(aba as PerfilTabId)}
-                  />
+                  <div className="space-y-4 border-b border-white/10 pb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <UserTabs
+                        abaAtiva={abaAtivaResolvida}
+                        tabs={abasDisponiveis}
+                        onChange={(aba) => setAbaAtiva(aba as PerfilTabId)}
+                        withDivider={false}
+                        className="flex-1"
+                      />
+
+                      {visaoAtiva === "loja" ? (
+                        <button
+                          type="button"
+                          onClick={() => abrirModalProduto()}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-400/10 text-yellow-300 transition hover:border-yellow-400/50 hover:bg-yellow-400/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                          aria-label="Adicionar produto"
+                          title="Adicionar produto"
+                        >
+                          <Plus className="h-5 w-5" />
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {isStoreProductsTab ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-white">Categorias da loja</p>
+                            <p className="text-xs text-neutral-400">
+                              Filtre os produtos pelas categorias ja cadastradas na sua vitrine.
+                            </p>
+                          </div>
+                        </div>
+
+                        {categoriasDaLoja.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCategoriaLojaAtiva("todas")}
+                              className={`rounded-full border px-3 py-2 text-sm transition ${
+                                categoriaLojaAtiva === "todas"
+                                  ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
+                                  : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
+                              }`.trim()}
+                            >
+                              Todas
+                            </button>
+
+                            {categoriasDaLoja.map((categoria) => (
+                              <button
+                                key={categoria.id}
+                                type="button"
+                                onClick={() => setCategoriaLojaAtiva(categoria.id)}
+                                className={`rounded-full border px-3 py-2 text-sm transition ${
+                                  categoriaLojaAtiva === categoria.id
+                                    ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
+                                    : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
+                                }`.trim()}
+                              >
+                                {categoria.nome}{" "}
+                                <span className="text-xs text-neutral-500">
+                                  ({categoria.totalProdutos})
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-neutral-500">
+                            As categorias vao aparecer aqui assim que houver produtos publicados.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
 
                   {/* Renderiza feedback visual adequado para cada estado da listagem. */}
                   {isConteudoLoading ? (
@@ -1447,14 +1732,25 @@ export function PerfilUsuarioPage() {
                       title="Erro ao carregar conteudo"
                       description={conteudoError}
                     />
-                  ) : tabContent.itens.length === 0 ? (
+                  ) : itensExibidos.length === 0 ? (
                     <ProfileFeedback
                       variant="empty"
-                      title={tabContent.vazioTitulo}
-                      description={tabContent.vazioDescricao}
+                      title={
+                        estaFiltrandoCategoria
+                          ? "Nenhum produto nessa categoria"
+                          : tabContent.vazioTitulo
+                      }
+                      description={
+                        estaFiltrandoCategoria
+                          ? "Selecione outra categoria ou adicione um novo produto para preencher essa secao."
+                          : tabContent.vazioDescricao
+                      }
                     />
                   ) : (
-                    <ProductGrid itens={tabContent.itens} />
+                    <ProductGrid
+                      itens={itensExibidos}
+                      onItemClick={isStoreProductsTab ? abrirModalProduto : undefined}
+                    />
                   )}
                 </div>
               </ProfileSection>
@@ -2008,6 +2304,128 @@ export function PerfilUsuarioPage() {
               className="h-11 sm:w-auto sm:px-6"
             >
               {isSalvandoPerfil ? "Salvando..." : "Salvar perfil"}
+            </Botao>
+          </div>
+        </form>
+      </ProfileModal>
+
+      <ProfileModal
+        isOpen={modalAberto === "produto"}
+        title={tituloModalProduto}
+        description={descricaoModalProduto}
+        onClose={fecharModal}
+      >
+        <form className="space-y-5" onSubmit={handleSalvarProduto}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Nome do produto"
+              id="produtoNome"
+              name="nome"
+              placeholder="Mouse Gamer RGB"
+              value={produtoForm.nome}
+              onChange={handleProdutoInputChange}
+              required
+            />
+
+            <Input
+              label="Categoria"
+              id="produtoCategoria"
+              name="categoria"
+              placeholder="Perifericos"
+              value={produtoForm.categoria}
+              onChange={handleProdutoInputChange}
+              required
+            />
+
+            <Input
+              label="SKU"
+              id="produtoSku"
+              name="sku"
+              placeholder="MOUSE-RGB-01"
+              value={produtoForm.sku}
+              onChange={handleProdutoInputChange}
+              required
+            />
+
+            <Input
+              label="Preco"
+              id="produtoPreco"
+              name="preco"
+              placeholder="100,99"
+              value={produtoForm.preco}
+              onChange={handleProdutoInputChange}
+              required
+            />
+
+            <Input
+              label="Estoque"
+              id="produtoEstoque"
+              name="estoque"
+              type="number"
+              min="0"
+              placeholder="10"
+              value={produtoForm.estoque}
+              onChange={handleProdutoInputChange}
+              required
+            />
+
+            <Input
+              label="Imagem principal (URL)"
+              id="produtoImagemUrl"
+              name="imagemUrl"
+              placeholder="https://..."
+              value={produtoForm.imagemUrl}
+              onChange={handleProdutoInputChange}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="produtoDescricao" className="text-[#6b6b6b]">
+              Descricao
+            </label>
+            <textarea
+              id="produtoDescricao"
+              name="descricao"
+              value={produtoForm.descricao}
+              onChange={handleProdutoInputChange}
+              placeholder="Descreva o produto para destacar os principais diferenciais."
+              rows={4}
+              className="w-full rounded-xl border border-[#6B6B6B] bg-black p-3 text-white outline-none transition focus:border-yellow-400"
+            />
+          </div>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-200">
+            <input
+              type="checkbox"
+              checked={produtoForm.disponivel}
+              onChange={handleProdutoDisponivelChange}
+              className="h-4 w-4 cursor-pointer accent-yellow-500"
+            />
+            Produto disponivel para venda
+          </label>
+
+          {produtoErroAcao ? <p className="text-sm text-red-400">{produtoErroAcao}</p> : null}
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Botao
+              type="button"
+              variant="secondary"
+              onClick={fecharModal}
+              className="h-11 sm:w-auto sm:px-6"
+            >
+              Cancelar
+            </Botao>
+
+            <Botao
+              type="submit"
+              disabled={isSalvandoProduto}
+              className="h-11 sm:w-auto sm:px-6"
+            >
+              {isSalvandoProduto
+                ? "Salvando..."
+                : produtoForm.id
+                  ? "Salvar produto"
+                  : "Criar produto"}
             </Botao>
           </div>
         </form>

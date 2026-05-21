@@ -85,6 +85,15 @@ export interface PerfilGridItem {
   valor: string;
   imagemUrl?: string;
   badge?: string;
+  produtoId?: number;
+  categoriaId?: string;
+  categoriaNome?: string;
+  sku?: string;
+  precoNumero?: number;
+  estoque?: number;
+  disponivel?: boolean;
+  descricao?: string;
+  imagens?: string[];
 }
 
 // Estrutura dos dados de cada aba do perfil.

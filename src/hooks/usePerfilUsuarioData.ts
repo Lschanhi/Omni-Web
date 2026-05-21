@@ -286,6 +286,15 @@ export function usePerfilUsuarioData() {
                 valor: currencyFormatter.format(produto.preco),
                 imagemUrl: produto.imagem,
                 badge: produto.disponivel ? "Publicado" : "Indisponivel",
+                produtoId: produto.id,
+                categoriaId: produto.categoriaId,
+                categoriaNome: produto.categoriaNome,
+                sku: produto.sku,
+                precoNumero: produto.preco,
+                estoque: produto.estoque,
+                disponivel: produto.disponivel,
+                descricao: produto.descricao,
+                imagens: produto.imagens,
               }))
           : [];
         const compras = mapearCompras(pedidos);
