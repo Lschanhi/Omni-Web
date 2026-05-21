@@ -1,16 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronRight, House, LogIn, LogOut, ShoppingCart, UserRound } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  LogIn,
+  LogOut,
+  ShoppingCart,
+  UserRound,
+} from "lucide-react";
 import LogoOmnimarket from "../assets/Logo_omnimarket.jpg";
-import { AUTH_CHANGED_EVENT, clearSession, isAuthenticated } from "../Services/auth/session";
+import {
+  AUTH_CHANGED_EVENT,
+  clearSession,
+  getStoredUser,
+  isAuthenticated,
+} from "../Services/auth/session";
 
-// Lista centralizada de links do cabecalho para facilitar manutencao futura.
-const navItems = [
-  {
-    to: "/",
-    label: "Home",
-    icon: House,
-  },
+const menuItems = [
   {
     to: "/perfilUsuario",
     label: "Perfil",
@@ -24,15 +30,18 @@ const navItems = [
 ] as const;
 
 export default function AppHeader() {
-  // Le a rota atual para destacar visualmente a pagina ativa no menu.
   const { location } = useRouterState();
   const navigate = useNavigate();
   const pathname = location.pathname;
   const [autenticado, setAutenticado] = useState(() => isAuthenticated());
+  const [nomeUsuario, setNomeUsuario] = useState(() => getStoredUser()?.nome ?? "");
+  const [menuAberto, setMenuAberto] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const sincronizarAutenticacao = () => {
       setAutenticado(isAuthenticated());
+      setNomeUsuario(getStoredUser()?.nome ?? "");
     };
 
     sincronizarAutenticacao();
@@ -45,6 +54,24 @@ export default function AppHeader() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!menuAberto) {
+      return undefined;
+    }
+
+    const handleClickFora = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuAberto(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleClickFora);
+
+    return () => {
+      window.removeEventListener("mousedown", handleClickFora);
+    };
+  }, [menuAberto]);
+
   function getNavItemClasses(isActive: boolean) {
     return `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
       isActive
@@ -54,8 +81,15 @@ export default function AppHeader() {
   }
 
   function handleLogout() {
+    setMenuAberto(false);
     clearSession();
     void navigate({ to: "/" });
+  }
+
+  function getNomeExibicao() {
+    const primeiroNome = nomeUsuario.trim().split(/\s+/).filter(Boolean)[0];
+
+    return primeiroNome || "Conta";
   }
 
   return (
@@ -85,53 +119,73 @@ export default function AppHeader() {
 
           {/* Navegacao principal com destaque para a rota atual. */}
           <nav className="flex flex-wrap items-center gap-2">
-            {navItems.slice(0, 1).map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.to;
-
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={getNavItemClasses(isActive)}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-
             {autenticado ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className={getNavItemClasses(false)}
-              >
-                <LogOut className="h-4 w-4" />
-                Sair
-              </button>
+              <div ref={menuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuAberto((currentState) => !currentState)}
+                  className={`${getNavItemClasses(menuAberto)} min-w-[148px] justify-between`}
+                  aria-expanded={menuAberto}
+                  aria-haspopup="menu"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <UserRound className="h-4 w-4" />
+                    {getNomeExibicao()}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition ${menuAberto ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {menuAberto ? (
+                  <div className="absolute right-0 top-full mt-3 w-56 rounded-3xl border border-white/10 bg-[#171717] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
+                    <div className="border-b border-white/10 px-3 py-2">
+                      <p className="text-sm font-medium text-white">{nomeUsuario || "Conta"}</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+                        Navegacao rapida
+                      </p>
+                    </div>
+
+                    <div className="mt-2 flex flex-col gap-1">
+                      {menuItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = pathname === item.to;
+
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            onClick={() => setMenuAberto(false)}
+                            className={`inline-flex items-center gap-3 rounded-2xl px-3 py-2 text-sm transition ${
+                              isActive
+                                ? "bg-yellow-400/10 text-yellow-300"
+                                : "text-neutral-200 hover:bg-white/5 hover:text-white"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="inline-flex items-center gap-3 rounded-2xl px-3 py-2 text-sm text-red-200 transition hover:bg-red-400/10 hover:text-red-100"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sair
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <Link to="/login" className={getNavItemClasses(pathname === "/login")}>
                 <LogIn className="h-4 w-4" />
                 Entrar
               </Link>
             )}
-
-            {navItems.slice(1).map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.to;
-
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={getNavItemClasses(isActive)}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
           </nav>
         </div>
 
