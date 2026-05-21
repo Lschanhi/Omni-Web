@@ -4,6 +4,7 @@ export type CartItemType = {
   preco: number;
   quantidade: number;
   subtotal: number;
+  lojaId?: number;
   imagem?: string;
   descricao?: string;
   categoria?: string;

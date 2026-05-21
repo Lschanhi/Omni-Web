@@ -34,6 +34,7 @@ function mapearCarrinho(response: CarrinhoApiResponse): CartItemType[] {
     preco: Number(item.precoUnitario),
     quantidade: item.quantidade,
     subtotal: Number(item.subtotal),
+    lojaId: item.lojaId,
     imagem: item.imagemPrincipal ?? undefined,
     descricao: `${item.nomeLoja} • ${item.categoria}`,
     categoria: item.categoria,
