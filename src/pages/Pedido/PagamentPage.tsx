@@ -1133,6 +1133,42 @@ export function PagamentPage() {
                   </p>
                 </div>
               ) : null}
+
+              {metodo === "debito" ? (
+                <div className="mt-5 grid grid-cols-1 gap-4 rounded-2xl border border-yellow-400/20 bg-black/30 p-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Input
+                      required
+                      id="numero-cartao"
+                      name="numero-cartao"
+                      label="Numero do cartao"
+                      placeholder="0000 0000 0000 0000"
+                      inputMode="numeric"
+                      autoComplete="cc-number"
+                      className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                    />
+                  </div>
+                  <Input
+                    required
+                    id="validade-cartao"
+                    name="validade-cartao"
+                    label="Validade"
+                    placeholder="MM/AA"
+                    inputMode="numeric"
+                    autoComplete="cc-exp"
+                    className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                  />
+                  <Input
+                    required
+                    id="nome-cartao"
+                    name="nome-cartao"
+                    label="Nome impresso no cartao"
+                    placeholder="Como aparece no cartao"
+                    autoComplete="cc-name"
+                    className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                  />
+                </div>
+              ) : null}
             </section>
           </div>
 

@@ -130,16 +130,15 @@ export function HomePage() {
             <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),_transparent_48%),linear-gradient(180deg,_rgba(255,255,255,0.04),_rgba(255,255,255,0.01))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-8">
               <div className="flex flex-col gap-6">
                 <div className="space-y-3">
-                  <span className="inline-flex w-fit rounded-full border border-yellow-400/30 bg-yellow-400/10 px-4 py-1 text-sm font-medium text-yellow-300">
+                  {/* <span className="inline-flex w-fit rounded-full border border-yellow-400/30 bg-yellow-400/10 px-4 py-1 text-sm font-medium text-yellow-300">
                     Marketplace conectado
-                  </span>
+                  </span> */}
                   <div className="space-y-2">
-                    <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                      Descubra ofertas com a API do Azure integrada ao front
+                    <h1 className="text-3xl font-bold tracking-tight text-yellow-400 sm:text-5xl text-center ">
+                      Bem-vindo ao Omnimarket
                     </h1>
-                    <p className="max-w-3xl text-sm leading-6 text-neutral-400 sm:text-base">
-                      Catalogo conectado a API publicada no Azure, com filtros locais,
-                      estados de carregamento e cards prontos para continuar evoluindo.
+                    <p className=" text-lg text-white font-bold text-center">
+                      Aqui você encontrará tudo que deseja em um só lugar
                     </p>
                   </div>
                 </div>
