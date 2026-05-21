@@ -119,34 +119,65 @@ export default function Footer() {
             </h3>
 
             <ul className="space-y-3 text-sm text-neutral-400">
-              <li>
+              <li className="flex gap-2">
                 <p className="transition hover:text-yellow-300">
                   Felipe Sardinha Miguel
                 </p>
+                <a href="#" className="transition hover:text-yellow-300 flex " target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="h-5 w-5" />
+                </a>
+                <a href="https://github.com/FelipeSardinhaMiguel" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
+                </a>
               </li>
 
-              <li>
-                <p className="transition hover:text-yellow-300">
+              <li className="flex gap-2">
+                <p className="transition hover:text-yellow-300" >
                   Gustavo Henrique da Silva
                 </p>
+                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="h-5 w-5" />
+                </a>
+                <a href="https://github.com/Gustavoh345" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
+                </a>
               </li>
 
-              <li>
+              <li className="flex gap-2">
                 <p className="transition hover:text-yellow-300">
                   Icaro Dias Camargo
                 </p>
+                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="h-5 w-5" />
+                </a>
+                <a href="https://github.com/IcaroCamargo" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
+                </a>
               </li>
 
-              <li>
+              <li className="flex gap-2">
                 <p className="transition hover:text-yellow-300">
-                  Lucas Chani Soiler
+                  Lucas Soler Chanhi
                 </p>
+                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="h-5 w-5" />
+                </a>
+                <a href="https://github.com/Lschanhi" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
+                </a>
               </li>
 
-              <li>
+              {/* este "whitespace-nowrap" servepara nao deixar o texto quebrar linha */}
+              <li className="flex gap-1 whitespace-nowrap">
                 <p className="transition hover:text-yellow-300">
                   Mauro Alexandre da Silva Roque
                 </p>
+                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="h-5 w-5" />
+                </a>
+                <a href="https://github.com/MauroRoque007" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
+                </a>
               </li>
             </ul>
           </div>

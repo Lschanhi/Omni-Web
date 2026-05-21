@@ -167,6 +167,7 @@ export default function AppHeader() {
             </div>
           </Link>
 
+          
           {/* Navegacao principal com destaque para a rota atual. */}
           <nav className="flex flex-wrap items-center gap-2">
             {autenticado ? (

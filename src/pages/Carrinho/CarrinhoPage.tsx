@@ -38,8 +38,7 @@ export function CarrinhoPage() {
                   Revise seus itens antes de finalizar a compra
                 </h1>
                 <p className="text-sm leading-6 text-neutral-400 sm:text-base">
-                  Agora o carrinho esta conectado com a API publicada no Azure e
-                  sincroniza os itens da sua conta autenticada.
+                  Aqui você pode alterar a quantidade de itens, verificar subtotal e ir para a finalização de sua compra
                 </p>
               </div>
             </section>
