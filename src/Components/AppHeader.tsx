@@ -14,7 +14,9 @@ import {
   clearSession,
   getStoredUser,
   isAuthenticated,
+  updateStoredUser,
 } from "../Services/auth/session";
+import { obterPerfilUsuario } from "../Services/user/usuarioService";
 
 const menuItems = [
   {
@@ -35,20 +37,56 @@ export default function AppHeader() {
   const pathname = location.pathname;
   const [autenticado, setAutenticado] = useState(() => isAuthenticated());
   const [nomeUsuario, setNomeUsuario] = useState(() => getStoredUser()?.nome ?? "");
+  const [avatarUsuario, setAvatarUsuario] = useState(() => getStoredUser()?.avatarUrl ?? "");
   const [menuAberto, setMenuAberto] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const sincronizarAutenticacao = () => {
+      const usuarioSessao = getStoredUser();
       setAutenticado(isAuthenticated());
-      setNomeUsuario(getStoredUser()?.nome ?? "");
+      setNomeUsuario(usuarioSessao?.nome ?? "");
+      setAvatarUsuario(usuarioSessao?.avatarUrl ?? "");
     };
 
     sincronizarAutenticacao();
     window.addEventListener(AUTH_CHANGED_EVENT, sincronizarAutenticacao);
     window.addEventListener("storage", sincronizarAutenticacao);
 
+    async function carregarAvatarAtual() {
+      if (!isAuthenticated()) {
+        return;
+      }
+
+      try {
+        const perfil = await obterPerfilUsuario();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const avatarAtual = perfil.avatarUrl ?? "";
+        setAvatarUsuario(avatarAtual);
+
+        const usuarioSessao = getStoredUser();
+
+        if (usuarioSessao && (usuarioSessao.avatarUrl ?? "") !== avatarAtual) {
+          updateStoredUser({
+            ...usuarioSessao,
+            avatarUrl: avatarAtual || null,
+          });
+        }
+      } catch {
+        // O header pode continuar com os dados da sessao se a leitura do perfil falhar.
+      }
+    }
+
+    void carregarAvatarAtual();
+
     return () => {
+      isMounted = false;
       window.removeEventListener(AUTH_CHANGED_EVENT, sincronizarAutenticacao);
       window.removeEventListener("storage", sincronizarAutenticacao);
     };
@@ -92,6 +130,18 @@ export default function AppHeader() {
     return primeiroNome || "Conta";
   }
 
+  function getNomeCompleto() {
+    return nomeUsuario.trim() || "Minha conta";
+  }
+
+  function getIniciaisUsuario() {
+    const partesDoNome = nomeUsuario.trim().split(/\s+/).filter(Boolean);
+    const primeiraParte = partesDoNome[0]?.[0] ?? "";
+    const segundaParte = partesDoNome[1]?.[0] ?? "";
+
+    return `${primeiraParte}${segundaParte}`.toUpperCase() || "MC";
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/90 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -124,26 +174,59 @@ export default function AppHeader() {
                 <button
                   type="button"
                   onClick={() => setMenuAberto((currentState) => !currentState)}
-                  className={`${getNavItemClasses(menuAberto)} min-w-[148px] justify-between`}
+                  className="flex min-w-[220px] items-center gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,_rgba(255,255,255,0.05),_rgba(255,255,255,0.02))] px-4 py-3 text-left transition hover:border-yellow-400/30 hover:bg-white/10"
                   aria-expanded={menuAberto}
                   aria-haspopup="menu"
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <UserRound className="h-4 w-4" />
-                    {getNomeExibicao()}
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-yellow-400/20 bg-black text-sm font-semibold text-yellow-300">
+                    {avatarUsuario ? (
+                      <img
+                        src={avatarUsuario}
+                        alt={`Avatar de ${getNomeCompleto()}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      getIniciaisUsuario()
+                    )}
                   </span>
+
+                  <span className="min-w-0 flex-1 space-y-1">
+                    <span className="block truncate text-sm font-semibold uppercase tracking-[0.24em] text-yellow-300">
+                      {getNomeExibicao()}
+                    </span>
+                    <span className="block truncate text-sm text-neutral-400">
+                      Perfil conectado
+                    </span>
+                  </span>
+
                   <ChevronDown
-                    className={`h-4 w-4 transition ${menuAberto ? "rotate-180" : ""}`}
+                    className={`h-4 w-4 shrink-0 text-neutral-300 transition ${menuAberto ? "rotate-180" : ""}`}
                   />
                 </button>
 
                 {menuAberto ? (
                   <div className="absolute right-0 top-full mt-3 w-56 rounded-3xl border border-white/10 bg-[#171717] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
-                    <div className="border-b border-white/10 px-3 py-2">
-                      <p className="text-sm font-medium text-white">{nomeUsuario || "Conta"}</p>
-                      <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-                        Navegacao rapida
-                      </p>
+                    <div className="flex items-center gap-3 border-b border-white/10 px-3 py-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-yellow-400/20 bg-black text-xs font-semibold text-yellow-300">
+                        {avatarUsuario ? (
+                          <img
+                            src={avatarUsuario}
+                            alt={`Avatar de ${getNomeCompleto()}`}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          getIniciaisUsuario()
+                        )}
+                      </span>
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
+                          {getNomeCompleto()}
+                        </p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+                          Navegacao rapida
+                        </p>
+                      </div>
                     </div>
 
                     <div className="mt-2 flex flex-col gap-1">

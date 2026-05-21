@@ -141,6 +141,10 @@ function telefoneTemConteudo(telefone: PerfilTelefoneFormState | null) {
   return Boolean(telefone?.numero.trim());
 }
 
+function normalizarTelefoneParaComparacao(telefone: string) {
+  return telefone.replace(/\D/g, "");
+}
+
 function enderecoTemConteudo(endereco: PerfilEnderecoFormState | null) {
   if (!endereco) {
     return false;
@@ -174,6 +178,70 @@ function mapearTelefoneParaFormulario(telefone: UsuarioTelefonePerfil): PerfilTe
     numero: telefone.numero,
     isPrincipal: telefone.isPrincipal,
   };
+}
+
+function deduplicarTelefonesParaFormulario(
+  telefones: PerfilTelefoneFormState[],
+  telefoneLojaId?: number | null,
+) {
+  const telefonesPorNumero = new Map<string, PerfilTelefoneFormState[]>();
+
+  for (const telefone of telefones) {
+    const numeroNormalizado =
+      normalizarTelefoneParaComparacao(telefone.numero) || `sem-numero-${telefone.id ?? telefone.numero}`;
+    const grupoAtual = telefonesPorNumero.get(numeroNormalizado) ?? [];
+
+    grupoAtual.push(telefone);
+    telefonesPorNumero.set(numeroNormalizado, grupoAtual);
+  }
+
+  const telefonesUnicos: PerfilTelefoneFormState[] = [];
+  const telefonesDuplicadosIds: number[] = [];
+
+  for (const grupo of telefonesPorNumero.values()) {
+    const telefoneCanonical =
+      grupo.find((telefone) => telefone.id === telefoneLojaId) ??
+      grupo.find((telefone) => telefone.isPrincipal) ??
+      grupo[0];
+
+    telefonesUnicos.push({
+      ...telefoneCanonical,
+      isPrincipal: grupo.some((telefone) => telefone.isPrincipal),
+    });
+
+    grupo.forEach((telefone) => {
+      if (telefone.id && telefone.id !== telefoneCanonical.id) {
+        telefonesDuplicadosIds.push(telefone.id);
+      }
+    });
+  }
+
+  const estadoNormalizado = normalizarPrincipalTelefones(telefonesUnicos, null);
+
+  return {
+    telefones: estadoNormalizado.telefones,
+    telefonesDuplicadosIds,
+  };
+}
+
+function encontrarTelefoneDuplicado(telefones: PerfilTelefoneFormState[]) {
+  const telefonesNormalizados = new Set<string>();
+
+  for (const telefone of telefones) {
+    const numeroNormalizado = normalizarTelefoneParaComparacao(telefone.numero);
+
+    if (!numeroNormalizado) {
+      continue;
+    }
+
+    if (telefonesNormalizados.has(numeroNormalizado)) {
+      return true;
+    }
+
+    telefonesNormalizados.add(numeroNormalizado);
+  }
+
+  return false;
 }
 
 function mapearEnderecoParaFormulario(endereco: UsuarioEnderecoPerfil): PerfilEnderecoFormState {
@@ -379,6 +447,11 @@ export function PerfilUsuarioPage() {
       return;
     }
 
+    const telefonesDeduplicados = deduplicarTelefonesParaFormulario(
+      usuario.telefones.map(mapearTelefoneParaFormulario),
+      loja?.telefoneId,
+    );
+
     setPerfilErroAcao("");
     setPerfilForm({
       nome: usuario.primeiroNome,
@@ -386,11 +459,11 @@ export function PerfilUsuarioPage() {
       email: usuario.email,
       password: "",
     });
-    setTelefonesForm(usuario.telefones.map(mapearTelefoneParaFormulario));
+    setTelefonesForm(telefonesDeduplicados.telefones);
     setEnderecosForm(usuario.enderecos.map(mapearEnderecoParaFormulario));
     setNovoTelefoneForm(null);
     setNovoEnderecoForm(null);
-    setTelefonesRemovidos([]);
+    setTelefonesRemovidos(telefonesDeduplicados.telefonesDuplicadosIds);
     setEnderecosRemovidos([]);
     setModalAberto("perfil");
   }
@@ -624,9 +697,17 @@ export function PerfilUsuarioPage() {
       setAvatarErroAcao("");
 
       if (avatarPreview) {
-        await atualizarFotoPerfil({
+        const response = await atualizarFotoPerfil({
           dataUrl: avatarPreview,
           nomeArquivo: avatarNomeArquivo || undefined,
+        });
+
+        const usuarioSessao = getStoredUser();
+        updateStoredUser({
+          nome: usuarioSessao?.nome ?? usuario.nome,
+          email: usuarioSessao?.email ?? usuario.email,
+          role: usuarioSessao?.role ?? "Usuario",
+          avatarUrl: response.fotoPerfil.avatarUrl,
         });
       } else {
         if (!usuario.avatarUrl) {
@@ -635,6 +716,14 @@ export function PerfilUsuarioPage() {
         }
 
         await removerFotoPerfil();
+
+        const usuarioSessao = getStoredUser();
+        updateStoredUser({
+          nome: usuarioSessao?.nome ?? usuario.nome,
+          email: usuarioSessao?.email ?? usuario.email,
+          role: usuarioSessao?.role ?? "Usuario",
+          avatarUrl: null,
+        });
       }
 
       fecharModal();
@@ -724,6 +813,37 @@ export function PerfilUsuarioPage() {
         throw new Error("Mantenha pelo menos um telefone cadastrado no perfil.");
       }
 
+      const telefonesParaValidar = [
+        ...telefonesForm,
+        ...(telefoneTemConteudo(novoTelefoneForm) ? [novoTelefoneForm!] : []),
+      ];
+
+      if (encontrarTelefoneDuplicado(telefonesParaValidar)) {
+        throw new Error("Esse numero de telefone ja esta cadastrado no perfil.");
+      }
+
+      const telefoneLojaRemovido =
+        loja?.telefoneId != null && telefonesRemovidos.includes(loja.telefoneId);
+      const telefoneSubstitutoId =
+        telefonesForm.find((telefone) => telefone.isPrincipal && telefone.id)?.id ??
+        telefonesForm.find((telefone) => telefone.id)?.id;
+      const enderecoPrincipalId =
+        enderecosForm.find((endereco) => endereco.isPrincipal && endereco.id)?.id ??
+        enderecosForm.find((endereco) => endereco.id)?.id ??
+        usuario.enderecoPrincipalId;
+
+      if (telefoneLojaRemovido && !telefoneSubstitutoId) {
+        throw new Error(
+          "Nao e possivel remover o telefone usado pela loja sem manter outro telefone ja salvo no perfil.",
+        );
+      }
+
+      if (telefoneLojaRemovido && !enderecoPrincipalId) {
+        throw new Error(
+          "Nao foi possivel atualizar a loja automaticamente porque nenhum endereco principal valido foi encontrado.",
+        );
+      }
+
       await atualizarPerfilUsuario(usuario.id, payload);
 
       await Promise.all(
@@ -773,6 +893,22 @@ export function PerfilUsuarioPage() {
         });
       }
 
+      if (loja && telefoneLojaRemovido) {
+        await atualizarMinhaLoja({
+          nomeFantasia: loja.nomeFantasia,
+          slug: loja.slug || undefined,
+          tipoDocumentoFiscal: loja.tipoDocumentoFiscal,
+          documentoFiscal: loja.documentoFiscal,
+          descricao: loja.descricao ?? undefined,
+          emailContato: loja.emailContato ?? undefined,
+          usarEnderecoUsuario: true,
+          enderecoUsuarioId: enderecoPrincipalId,
+          usarTelefoneUsuario: true,
+          telefoneUsuarioId: telefoneSubstitutoId,
+          ativa: loja.ativa,
+        });
+      }
+
       await Promise.all(telefonesRemovidos.map((telefoneId) => removerTelefone(telefoneId)));
       await Promise.all(
         enderecosRemovidos.map((enderecoId) => removerEndereco(usuario.id, enderecoId)),
@@ -783,6 +919,7 @@ export function PerfilUsuarioPage() {
         nome: `${payload.nome} ${payload.sobrenome}`.trim(),
         email: payload.email,
         role: usuarioSessao?.role ?? "Usuario",
+        avatarUrl: usuarioSessao?.avatarUrl ?? usuario.avatarUrl ?? null,
       });
 
       fecharModal();

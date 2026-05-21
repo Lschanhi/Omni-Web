@@ -2,6 +2,7 @@ export type SessionUser = {
   nome: string;
   email: string;
   role: string;
+  avatarUrl?: string | null;
 };
 
 export type StoredSession = {
