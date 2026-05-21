@@ -17,7 +17,7 @@ type ProdutoApiResponse = {
   lojaId: number;
   nomeLoja: string;
   slugLoja: string;
-  imagens: string[];
+  imagens?: string[] | null;
 };
 
 type ProdutoMutacaoApiResponse =
@@ -39,6 +39,38 @@ export type ProdutoMutacaoPayload = {
   descricao?: string;
   imagens?: string[];
 };
+
+type ProdutoMidiaApiItem =
+  | string
+  | {
+      id?: number;
+      url?: string | null;
+      Url?: string | null;
+      arquivoUrl?: string | null;
+      ArquivoUrl?: string | null;
+      midiaUrl?: string | null;
+      MidiaUrl?: string | null;
+      blobUrl?: string | null;
+      BlobUrl?: string | null;
+      caminho?: string | null;
+      Caminho?: string | null;
+      src?: string | null;
+      Src?: string | null;
+      arquivo?: {
+        url?: string | null;
+      } | null;
+    };
+
+type ProdutoMidiaApiResponse =
+  | ProdutoMidiaApiItem[]
+  | {
+      midias?: ProdutoMidiaApiItem[] | null;
+      Midias?: ProdutoMidiaApiItem[] | null;
+      data?: ProdutoMidiaApiItem[] | null;
+      itens?: ProdutoMidiaApiItem[] | null;
+    }
+  | null
+  | undefined;
 
 function normalizarTexto(valor: string) {
   return valor
@@ -109,6 +141,63 @@ function extrairProdutoDaResposta(response: ProdutoMutacaoApiResponse) {
   return null;
 }
 
+function extrairUrlMidia(midia: ProdutoMidiaApiItem) {
+  if (typeof midia === "string") {
+    return midia.trim();
+  }
+
+  if (!midia || typeof midia !== "object") {
+    return "";
+  }
+
+  const candidatos = [
+    midia.url,
+    midia.Url,
+    midia.arquivoUrl,
+    midia.ArquivoUrl,
+    midia.midiaUrl,
+    midia.MidiaUrl,
+    midia.blobUrl,
+    midia.BlobUrl,
+    midia.caminho,
+    midia.Caminho,
+    midia.src,
+    midia.Src,
+    midia.arquivo?.url,
+  ];
+
+  return candidatos.find((valor) => typeof valor === "string" && valor.trim())?.trim() ?? "";
+}
+
+function normalizarMidias(response: ProdutoMidiaApiResponse) {
+  const itens = Array.isArray(response)
+    ? response
+    : response?.midias ?? response?.Midias ?? response?.data ?? response?.itens ?? [];
+
+  return itens.map(extrairUrlMidia).filter(Boolean);
+}
+
+export async function listarMidiasProduto(produtoId: number) {
+  const response = await apiRequest<ProdutoMidiaApiResponse>(`/api/produtos/${produtoId}/midias`);
+  return normalizarMidias(response);
+}
+
+export async function enviarMidiasProduto(produtoId: number, arquivos: File[]) {
+  const formData = new FormData();
+
+  arquivos.forEach((arquivo) => {
+    formData.append("arquivos", arquivo);
+  });
+
+  const response = await apiRequest<ProdutoMidiaApiResponse>(`/api/produtos/${produtoId}/midias`, {
+    method: "POST",
+    authenticated: true,
+    body: formData,
+  });
+
+  return normalizarMidias(response);
+}
+
 function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
   const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
   const imagemSalvaLocalmente = getStoredProdutoImage(produto.id);
@@ -141,12 +230,37 @@ function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
 
 export async function listarProdutos() {
   const produtos = await apiRequest<ProdutoApiResponse[]>("/api/produto");
-  return produtos.map(mapearProduto);
+  const produtosComMidia = await Promise.all(
+    produtos.map(async (produto) => {
+      const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
+
+      if (imagens.length > 0) {
+        return produto;
+      }
+
+      const midias = await listarMidiasProduto(produto.id).catch(() => []);
+      return {
+        ...produto,
+        imagens: midias,
+      };
+    }),
+  );
+
+  return produtosComMidia.map(mapearProduto);
 }
 
 export async function obterProdutoPorId(id: number) {
   const produto = await apiRequest<ProdutoApiResponse>(`/api/produto/${id}`);
-  return mapearProduto(produto);
+  const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
+  const produtoComMidia =
+    imagens.length > 0
+      ? produto
+      : {
+          ...produto,
+          imagens: await listarMidiasProduto(id).catch(() => []),
+        };
+
+  return mapearProduto(produtoComMidia);
 }
 
 export async function criarProduto(payload: ProdutoMutacaoPayload) {

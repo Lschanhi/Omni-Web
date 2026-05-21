@@ -16,6 +16,7 @@ import { usePerfilUsuarioData } from "../../hooks/usePerfilUsuarioData";
 import {
   atualizarProduto,
   criarProduto,
+  enviarMidiasProduto,
   type ProdutoMutacaoPayload,
 } from "../../Services/produtos/produtoService";
 import {
@@ -751,6 +752,7 @@ export function PerfilUsuarioPage() {
   const [enderecosRemovidos, setEnderecosRemovidos] = useState<number[]>([]);
   const [lojaForm, setLojaForm] = useState<LojaFormState>(LOJA_FORM_INICIAL);
   const [produtoForm, setProdutoForm] = useState<ProdutoFormState>(PRODUTO_FORM_INICIAL);
+  const [produtoImagemArquivo, setProdutoImagemArquivo] = useState<File | null>(null);
   const [tiposLogradouro, setTiposLogradouro] = useState<TipoLogradouroOption[]>(
     TIPOS_LOGRADOURO_FALLBACK,
   );
@@ -879,6 +881,7 @@ export function PerfilUsuarioPage() {
     setLojaErroAcao("");
     setProdutoErroAcao("");
     setProdutoForm(PRODUTO_FORM_INICIAL);
+    setProdutoImagemArquivo(null);
     setNovoTelefoneForm(null);
     setNovoEnderecoForm(null);
     setTelefonesRemovidos([]);
@@ -961,6 +964,7 @@ export function PerfilUsuarioPage() {
   function abrirModalProduto(item?: PerfilGridItem) {
     setProdutoErroAcao("");
     setProdutoForm(criarProdutoForm(item));
+    setProdutoImagemArquivo(null);
     setModalAberto("produto");
   }
 
@@ -1311,6 +1315,7 @@ export function PerfilUsuarioPage() {
         ...currentData,
         imagemUrl: dataUrl,
       }));
+      setProdutoImagemArquivo(file);
       setProdutoErroAcao("");
     } catch (error) {
       setProdutoErroAcao(
@@ -1326,6 +1331,7 @@ export function PerfilUsuarioPage() {
       ...currentData,
       imagemUrl: "",
     }));
+    setProdutoImagemArquivo(null);
     setProdutoErroAcao("");
   }
 
@@ -1361,7 +1367,6 @@ export function PerfilUsuarioPage() {
         estoque,
         disponivel: produtoForm.disponivel,
         descricao: produtoForm.descricao.trim() || undefined,
-        imagens: produtoForm.imagemUrl.trim() ? [produtoForm.imagemUrl.trim()] : [],
       };
 
       const produtoSalvo = produtoForm.id
@@ -1371,6 +1376,10 @@ export function PerfilUsuarioPage() {
       const produtoIdPersistido = produtoSalvo?.id ?? produtoForm.id;
 
       if (produtoIdPersistido) {
+        if (produtoImagemArquivo) {
+          await enviarMidiasProduto(produtoIdPersistido, [produtoImagemArquivo]);
+        }
+
         if (produtoForm.imagemUrl.trim()) {
           saveStoredProdutoImage(produtoIdPersistido, produtoForm.imagemUrl.trim());
         } else {
