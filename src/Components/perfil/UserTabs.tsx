@@ -1,22 +1,32 @@
-import type { PerfilTabId } from "../../types/perfil";
+import type { PerfilTabKey } from "../../types/perfil";
 
-// Define o rotulo de cada aba em um lugar unico para facilitar manutencao.
-const TABS: Array<{ id: PerfilTabId; label: string }> = [
-  { id: "produtos", label: "Produtos" },
-  { id: "vendas", label: "Vendas" },
-  { id: "compras", label: "Compras" },
-];
+export interface UserTabOption {
+  id: PerfilTabKey;
+  label: string;
+  disabled?: boolean;
+}
 
 // Renderiza a navegacao entre os blocos de conteudo do perfil.
 interface UserTabsProps {
-  abaAtiva: PerfilTabId;
-  onChange: (aba: PerfilTabId) => void;
+  abaAtiva: PerfilTabKey;
+  tabs: UserTabOption[];
+  onChange: (aba: PerfilTabKey) => void;
+  withDivider?: boolean;
+  className?: string;
 }
 
-export function UserTabs({ abaAtiva, onChange }: UserTabsProps) {
+export function UserTabs({
+  abaAtiva,
+  tabs,
+  onChange,
+  withDivider = true,
+  className = "",
+}: UserTabsProps) {
   return (
-    <div className="flex flex-wrap gap-3 border-b border-white/10 pb-4">
-      {TABS.map((tab) => {
+    <div
+      className={`flex flex-wrap gap-3 ${withDivider ? "border-b border-white/10 pb-4" : ""} ${className}`.trim()}
+    >
+      {tabs.map((tab) => {
         const isAtiva = tab.id === abaAtiva;
 
         return (
@@ -24,11 +34,12 @@ export function UserTabs({ abaAtiva, onChange }: UserTabsProps) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
+            disabled={tab.disabled}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
               isAtiva
                 ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
                 : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
-            }`.trim()}
+            } ${tab.disabled ? "cursor-not-allowed opacity-50" : ""}`.trim()}
           >
             {tab.label}
           </button>

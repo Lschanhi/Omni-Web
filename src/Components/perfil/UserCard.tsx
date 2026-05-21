@@ -1,17 +1,24 @@
-import type { UsuarioPerfil } from "../../types/perfil";
+import type { ReactNode } from "react";
+import type { PerfilIdentityCardData } from "../../types/perfil";
 import { Botao } from "../Botao";
 import { ProfileSection } from "./ProfileSection";
 import { UserInfo } from "./UserInfo";
-import { Camera, PencilLine, Store } from "lucide-react";
+import { Camera } from "lucide-react";
 
-// Exibe o resumo principal do usuario com avatar, nome e contatos.
+interface UserCardAction {
+  label: string;
+  onClick: () => void;
+  icon: ReactNode;
+  disabled?: boolean;
+  variant?: "primary" | "secondary";
+}
+
+// Exibe o resumo principal do contexto ativo do perfil com avatar, nome e contatos.
 interface UserCardProps {
-  usuario: UsuarioPerfil | null;
+  card: PerfilIdentityCardData | null;
   onEditAvatar: () => void;
-  onEditProfile: () => void;
-  onStoreAction: () => void;
-  storeActionLabel: string;
-  canManageStore: boolean;
+  primaryAction: UserCardAction;
+  secondaryAction?: UserCardAction;
 }
 
 // Gera as iniciais para quando a foto real ainda nao estiver disponivel.
@@ -28,12 +35,10 @@ function obterIniciais(nome: string | undefined) {
 }
 
 export function UserCard({
-  usuario,
+  card,
   onEditAvatar,
-  onEditProfile,
-  onStoreAction,
-  storeActionLabel,
-  canManageStore,
+  primaryAction,
+  secondaryAction,
 }: UserCardProps) {
   return (
     <ProfileSection className="h-full">
@@ -45,15 +50,15 @@ export function UserCard({
             className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/70"
             aria-label="Alterar foto do perfil"
           >
-            {usuario?.avatarUrl ? (
+            {card?.avatarUrl ? (
               <img
-                src={usuario.avatarUrl}
-                alt={`Avatar de ${usuario.nome}`}
+                src={card.avatarUrl}
+                alt={`Avatar de ${card.nome}`}
                 className="h-54 w-40 rounded-full border-4 border-yellow-400 object-cover transition group-hover:brightness-75 sm:h-54 sm:w-60"
               />
             ) : (
               <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-yellow-400 bg-black text-3xl font-bold text-yellow-400 transition group-hover:bg-neutral-950 sm:h-32 sm:w-32">
-                {obterIniciais(usuario?.nome)}
+                {obterIniciais(card?.nome)}
               </div>
             )}
 
@@ -63,55 +68,57 @@ export function UserCard({
           </button>
 
           <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">
-            Clique na foto para alterar
+            {card?.fotoHint || "Clique na foto para alterar"}
           </p>
 
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.32em] text-yellow-400">
-              Perfil do usuario
+              {card?.rotulo || "Perfil"}
             </p>
             <h1 className="text-2xl font-semibold text-white">
-              {usuario?.nome || "Usuario sem nome cadastrado"}
+              {card?.nome || "Informacao indisponivel"}
             </h1>
             <p className="text-sm text-neutral-400">
-              {usuario?.resumo || "Area pronta para bio, cargo ou descricao curta do usuario."}
+              {card?.resumo || "Area pronta para bio, cargo ou descricao curta."}
             </p>
           </div>
 
           <div className="inline-flex rounded-full border border-yellow-400/30 bg-yellow-400/10 px-4 py-1 text-xs font-medium uppercase tracking-[0.2em] text-yellow-300">
-            {usuario?.contaVerificada ? "Conta verificada" : "Conta em configuracao"}
+            {card?.badge || "Em configuracao"}
           </div>
         </div>
 
         <div className="border-t border-white/10" />
 
-        <UserInfo usuario={usuario} />
+        <UserInfo items={card?.infoItems ?? []} />
 
         <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 px-4 py-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Botao
-              onClick={onEditProfile}
+              onClick={primaryAction.onClick}
+              disabled={primaryAction.disabled}
+              variant={primaryAction.variant === "secondary" ? "secondary" : "primary"}
               className="h-11 text-sm"
-              icon={<PencilLine className="h-4 w-4" />}
+              icon={primaryAction.icon}
             >
-              Editar perfil
+              {primaryAction.label}
             </Botao>
 
-            <Botao
-              onClick={onStoreAction}
-              variant="secondary"
-              disabled={!canManageStore}
-              className="h-11 border-white/10 bg-white/5 text-sm hover:bg-white/10"
-              icon={<Store className="h-4 w-4" />}
-            >
-              {storeActionLabel}
-            </Botao>
+            {secondaryAction ? (
+              <Botao
+                onClick={secondaryAction.onClick}
+                disabled={secondaryAction.disabled}
+                variant={secondaryAction.variant === "primary" ? "primary" : "secondary"}
+                className="h-11 border-white/10 bg-white/5 text-sm hover:bg-white/10"
+                icon={secondaryAction.icon}
+              >
+                {secondaryAction.label}
+              </Botao>
+            ) : null}
           </div>
 
           <p className="mt-3 text-sm text-neutral-400">
-            {canManageStore
-              ? "Sua loja pode usar o endereco e o telefone principal que ja estao cadastrados no perfil."
-              : "Cadastre um telefone e um endereco principal para liberar a criacao da loja."}
+            {card?.footerText || "Use este painel para revisar os dados principais da conta."}
           </p>
         </div>
       </div>

@@ -1,5 +1,9 @@
 // Representa as abas disponiveis dentro da pagina de perfil.
 export type PerfilTabId = "produtos" | "vendas" | "compras";
+export type PerfilVisaoId = "comprador" | "loja";
+
+export type PerfilInfoItemId = "email" | "telefone" | "endereco";
+export type PerfilTabKey = PerfilTabId | PerfilVisaoId;
 
 export interface UsuarioTelefonePerfil {
   id: number;
@@ -39,6 +43,23 @@ export interface UsuarioPerfil {
   contaVerificada?: boolean;
 }
 
+export interface PerfilInfoItem {
+  key: PerfilInfoItemId;
+  label: string;
+  value: string;
+}
+
+export interface PerfilIdentityCardData {
+  rotulo: string;
+  nome: string;
+  resumo: string;
+  avatarUrl?: string;
+  fotoHint: string;
+  badge: string;
+  infoItems: PerfilInfoItem[];
+  footerText: string;
+}
+
 // Define os indicadores principais exibidos no painel de estatisticas.
 export interface UsuarioStatsData {
   avaliacaoMedia: number;
@@ -46,6 +67,14 @@ export interface UsuarioStatsData {
   totalProdutos: number;
   totalVendas: number;
   totalCompras: number;
+  faturamentoBruto: number;
+  ticketMedio: number;
+}
+
+export interface PerfilStatCardItem {
+  key: string;
+  label: string;
+  value: string;
 }
 
 // Representa um item exibido no grid das abas de conteudo.

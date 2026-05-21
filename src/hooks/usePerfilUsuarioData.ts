@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import type {
   PerfilGridItem,
   PerfilPageState,
-  PerfilTabContent,
   PerfilTabId,
   UsuarioEnderecoPerfil,
   UsuarioPerfil,
@@ -28,27 +27,6 @@ import {
   type UsuarioPerfilApiResponse,
 } from "../Services/user/usuarioService";
 
-const TAB_METADATA: Record<PerfilTabId, Omit<PerfilTabContent, "itens">> = {
-  produtos: {
-    titulo: "Produtos publicados",
-    descricao: "Itens atualmente disponiveis na sua vitrine.",
-    vazioTitulo: "Nenhum produto encontrado",
-    vazioDescricao: "Quando houver produtos cadastrados, eles aparecerao aqui.",
-  },
-  vendas: {
-    titulo: "Historico de vendas",
-    descricao: "Acompanhe as vendas concluidas e em andamento.",
-    vazioTitulo: "Nenhuma venda encontrada",
-    vazioDescricao: "Assim que houver dados da loja, eles aparecerao aqui.",
-  },
-  compras: {
-    titulo: "Historico de compras",
-    descricao: "Visualize os pedidos feitos pela sua conta.",
-    vazioTitulo: "Nenhuma compra encontrada",
-    vazioDescricao: "As compras vinculadas ao usuario serao exibidas aqui.",
-  },
-};
-
 const INITIAL_STATE: PerfilPageState = {
   isUsuarioLoading: true,
   isConteudoLoading: true,
@@ -62,6 +40,8 @@ const INITIAL_STATS: UsuarioStatsData = {
   totalProdutos: 0,
   totalVendas: 0,
   totalCompras: 0,
+  faturamentoBruto: 0,
+  ticketMedio: 0,
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -187,6 +167,8 @@ function mapearStats(
     totalVendas:
       metricas?.pedidosPorStatus.reduce((acumulador, item) => acumulador + item.total, 0) ?? 0,
     totalCompras,
+    faturamentoBruto: Number(metricas?.faturamentoBruto ?? 0),
+    ticketMedio: Number(metricas?.ticketMedio ?? 0),
   };
 }
 
@@ -356,18 +338,13 @@ export function usePerfilUsuarioData() {
     };
   }, [reloadSeed]);
 
-  const tabContent: PerfilTabContent = {
-    ...TAB_METADATA[abaAtiva],
-    itens: tabItems[abaAtiva],
-  };
-
   return {
     usuario,
     loja,
     temLoja: Boolean(loja),
     stats,
     abaAtiva,
-    tabContent,
+    tabItems,
     ...pageState,
     setAbaAtiva,
     recarregarDados: () => setReloadSeed((currentSeed) => currentSeed + 1),

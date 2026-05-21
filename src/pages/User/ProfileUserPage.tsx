@@ -11,7 +11,7 @@ import { ProfileSection } from "../../Components/perfil/ProfileSection";
 import { ProfileSkeleton } from "../../Components/perfil/ProfileSkeleton";
 import { UserCard } from "../../Components/perfil/UserCard";
 import { UserStats } from "../../Components/perfil/UserStats";
-import { UserTabs } from "../../Components/perfil/UserTabs";
+import { UserTabs, type UserTabOption } from "../../Components/perfil/UserTabs";
 import { usePerfilUsuarioData } from "../../hooks/usePerfilUsuarioData";
 import { getStoredUser, updateStoredUser } from "../../Services/auth/session";
 import {
@@ -38,7 +38,15 @@ import {
   atualizarPerfilUsuario,
   removerFotoPerfil,
 } from "../../Services/user/usuarioService";
-import type { UsuarioEnderecoPerfil, UsuarioTelefonePerfil } from "../../types/perfil";
+import type {
+  PerfilIdentityCardData,
+  PerfilStatCardItem,
+  PerfilTabContent,
+  PerfilTabId,
+  PerfilVisaoId,
+  UsuarioEnderecoPerfil,
+  UsuarioTelefonePerfil,
+} from "../../types/perfil";
 
 type ModalAberto = "avatar" | "perfil" | "loja" | null;
 
@@ -111,6 +119,239 @@ const LOJA_FORM_INICIAL: LojaFormState = {
 };
 
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+const VIEW_TABS: UserTabOption[] = [
+  { id: "comprador", label: "Comprador" },
+  { id: "loja", label: "Loja" },
+];
+
+const CONTENT_TABS_BY_VIEW: Record<PerfilVisaoId, UserTabOption[]> = {
+  comprador: [{ id: "compras", label: "Compras" }],
+  loja: [
+    { id: "produtos", label: "Produtos" },
+    { id: "vendas", label: "Vendas" },
+  ],
+};
+
+const TAB_METADATA: Record<PerfilTabId, Omit<PerfilTabContent, "itens">> = {
+  produtos: {
+    titulo: "Produtos publicados",
+    descricao: "Itens atualmente disponiveis na vitrine da sua loja.",
+    vazioTitulo: "Nenhum produto encontrado",
+    vazioDescricao: "Quando houver produtos cadastrados na loja, eles aparecerao aqui.",
+  },
+  vendas: {
+    titulo: "Desempenho de vendas",
+    descricao: "Resumo dos itens que mais convertem receita na sua loja.",
+    vazioTitulo: "Nenhuma venda encontrada",
+    vazioDescricao: "Assim que a loja tiver historico, os dados aparecerao aqui.",
+  },
+  compras: {
+    titulo: "Historico de compras",
+    descricao: "Visualize os pedidos feitos pela sua conta de comprador.",
+    vazioTitulo: "Nenhuma compra encontrada",
+    vazioDescricao: "As compras vinculadas ao usuario serao exibidas aqui.",
+  },
+};
+
+function formatarMoeda(valor: number) {
+  return currencyFormatter.format(Number(valor ?? 0));
+}
+
+function formatarAvaliacaoMedia(avaliacaoMedia: number) {
+  return avaliacaoMedia ? `${avaliacaoMedia.toFixed(1)} / 5` : "Sem nota";
+}
+
+function formatarEnderecoLoja(
+  loja: {
+    nomeEndereco?: string | null;
+    numeroEndereco?: string | null;
+    complementoEndereco?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+  } | null,
+) {
+  if (!loja?.nomeEndereco?.trim()) {
+    return "";
+  }
+
+  const partes = [`${loja.nomeEndereco.trim()}, ${loja.numeroEndereco?.trim() || "S/N"}`];
+
+  if (loja.complementoEndereco?.trim()) {
+    partes.push(loja.complementoEndereco.trim());
+  }
+
+  const cidadeUf = [loja.cidade?.trim(), loja.uf?.trim()].filter(Boolean).join("/");
+
+  if (cidadeUf) {
+    partes.push(cidadeUf);
+  }
+
+  return partes.join(" - ");
+}
+
+function criarCardComprador(
+  usuario: {
+    nome: string;
+    email: string;
+    telefone: string;
+    endereco: string;
+    avatarUrl?: string;
+    resumo?: string;
+    contaVerificada?: boolean;
+  } | null,
+  podeGerenciarLoja: boolean,
+): PerfilIdentityCardData | null {
+  if (!usuario) {
+    return null;
+  }
+
+  return {
+    rotulo: "Perfil do usuario",
+    nome: usuario.nome,
+    resumo: usuario.resumo || "Area pronta para bio, cargo ou descricao curta do usuario.",
+    avatarUrl: usuario.avatarUrl,
+    fotoHint: "Clique na foto para alterar",
+    badge: usuario.contaVerificada ? "Conta verificada" : "Conta em configuracao",
+    infoItems: [
+      { key: "email", label: "Email", value: usuario.email },
+      { key: "telefone", label: "Telefone", value: usuario.telefone },
+      { key: "endereco", label: "Endereco", value: usuario.endereco },
+    ],
+    footerText: podeGerenciarLoja
+      ? "Sua loja pode usar o endereco e o telefone principal que ja estao cadastrados no perfil."
+      : "Cadastre um telefone e um endereco principal para liberar a criacao da loja.",
+  };
+}
+
+function criarCardLoja(
+  loja: {
+    nomeFantasia: string;
+    descricao?: string | null;
+    emailContato?: string | null;
+    numeroTelefone?: string | null;
+    ativa: boolean;
+    nomeEndereco?: string | null;
+    numeroEndereco?: string | null;
+    complementoEndereco?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+  } | null,
+  usuario: {
+    email: string;
+    telefone: string;
+    endereco: string;
+    avatarUrl?: string;
+  } | null,
+): PerfilIdentityCardData | null {
+  if (!loja) {
+    return null;
+  }
+
+  return {
+    rotulo: "Perfil da loja",
+    nome: loja.nomeFantasia,
+    resumo:
+      loja.descricao?.trim() ||
+      "Esta aba mostra a apresentacao publica e os principais dados operacionais da loja.",
+    avatarUrl: usuario?.avatarUrl,
+    fotoHint: "Clique na foto para atualizar a imagem usada pela conta",
+    badge: loja.ativa ? "Loja ativa" : "Loja em configuracao",
+    infoItems: [
+      {
+        key: "email",
+        label: "Email de contato",
+        value: loja.emailContato?.trim() || usuario?.email || "",
+      },
+      {
+        key: "telefone",
+        label: "Telefone da loja",
+        value: loja.numeroTelefone?.trim() || usuario?.telefone || "",
+      },
+      {
+        key: "endereco",
+        label: "Endereco da loja",
+        value: formatarEnderecoLoja(loja) || usuario?.endereco || "",
+      },
+    ],
+    footerText:
+      "Use esta visao para revisar os dados publicos da loja e acompanhar a performance da sua vitrine.",
+  };
+}
+
+function criarStatsComprador(
+  usuario: {
+    telefones: Array<unknown>;
+    enderecos: Array<unknown>;
+    contaVerificada?: boolean;
+  } | null,
+  stats: { totalCompras: number },
+): PerfilStatCardItem[] {
+  return [
+    {
+      key: "total-compras",
+      label: "Compras",
+      value: `${stats.totalCompras}`,
+    },
+    {
+      key: "telefones",
+      label: "Telefones",
+      value: `${usuario?.telefones.length ?? 0}`,
+    },
+    {
+      key: "enderecos",
+      label: "Enderecos",
+      value: `${usuario?.enderecos.length ?? 0}`,
+    },
+    {
+      key: "status-conta",
+      label: "Conta",
+      value: usuario?.contaVerificada ? "Verificada" : "Em ajuste",
+    },
+  ];
+}
+
+function criarStatsLoja(
+  stats: {
+    avaliacaoMedia: number;
+    totalProdutos: number;
+    totalVendas: number;
+    faturamentoBruto: number;
+    ticketMedio: number;
+  },
+): PerfilStatCardItem[] {
+  return [
+    {
+      key: "avaliacao-media",
+      label: "Avaliacao media",
+      value: formatarAvaliacaoMedia(stats.avaliacaoMedia),
+    },
+    {
+      key: "total-produtos",
+      label: "Produtos",
+      value: `${stats.totalProdutos}`,
+    },
+    {
+      key: "total-vendas",
+      label: "Vendas",
+      value: `${stats.totalVendas}`,
+    },
+    {
+      key: "faturamento-bruto",
+      label: "Faturamento",
+      value: formatarMoeda(stats.faturamentoBruto),
+    },
+    {
+      key: "ticket-medio",
+      label: "Ticket medio",
+      value: formatarMoeda(stats.ticketMedio),
+    },
+  ];
+}
 
 function lerArquivoComoDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -358,7 +599,7 @@ export function PerfilUsuarioPage() {
     temLoja,
     stats,
     abaAtiva,
-    tabContent,
+    tabItems,
     isUsuarioLoading,
     isConteudoLoading,
     usuarioError,
@@ -366,6 +607,7 @@ export function PerfilUsuarioPage() {
     setAbaAtiva,
     recarregarDados,
   } = usePerfilUsuarioData();
+  const [visaoAtiva, setVisaoAtiva] = useState<PerfilVisaoId>("comprador");
   const [modalAberto, setModalAberto] = useState<ModalAberto>(null);
   const [perfilForm, setPerfilForm] = useState<PerfilFormState>(PERFIL_FORM_INICIAL);
   const [avatarPreview, setAvatarPreview] = useState("");
@@ -388,6 +630,42 @@ export function PerfilUsuarioPage() {
   const [isSalvandoLoja, setIsSalvandoLoja] = useState(false);
 
   const podeGerenciarLoja = Boolean(usuario?.enderecoPrincipalId && usuario?.telefonePrincipalId);
+  const visoesDisponiveis = temLoja
+    ? VIEW_TABS
+    : VIEW_TABS.filter((visao) => visao.id !== "loja");
+  const abasDisponiveis = CONTENT_TABS_BY_VIEW[visaoAtiva];
+  const abaAtivaResolvida = abasDisponiveis.some((aba) => aba.id === abaAtiva)
+    ? (abaAtiva as PerfilTabId)
+    : (abasDisponiveis[0]?.id as PerfilTabId);
+  const tabContent: PerfilTabContent = {
+    ...TAB_METADATA[abaAtivaResolvida],
+    itens: tabItems[abaAtivaResolvida],
+  };
+  const cardAtivo =
+    visaoAtiva === "loja"
+      ? criarCardLoja(loja, usuario)
+      : criarCardComprador(usuario, podeGerenciarLoja);
+  const statsAtivos =
+    visaoAtiva === "loja" ? criarStatsLoja(stats) : criarStatsComprador(usuario, stats);
+  const heroBadge = visaoAtiva === "loja" ? "Central da loja" : "Central do perfil";
+  const heroTitulo = visaoAtiva === "loja" ? loja?.nomeFantasia || "Minha loja" : "Meu perfil";
+  const heroDescricao =
+    visaoAtiva === "loja"
+      ? loja?.descricao?.trim() ||
+        "Acompanhe a identidade publica da loja, os indicadores e os itens da vitrine em um painel separado do perfil de comprador."
+      : "Acompanhe seus dados de comprador, edite informacoes pessoais e consulte o historico de compras em um painel separado da loja.";
+
+  useEffect(() => {
+    if (!temLoja && visaoAtiva === "loja") {
+      setVisaoAtiva("comprador");
+    }
+  }, [temLoja, visaoAtiva]);
+
+  useEffect(() => {
+    if (!abasDisponiveis.some((aba) => aba.id === abaAtiva)) {
+      setAbaAtiva(abasDisponiveis[0]?.id as PerfilTabId);
+    }
+  }, [abaAtiva, abasDisponiveis, setAbaAtiva]);
 
   useEffect(() => {
     if (!usuario) {
@@ -989,17 +1267,27 @@ export function PerfilUsuarioPage() {
           {/* Apresenta o cabecalho principal da pagina com a mesma linguagem visual escura do projeto. */}
           <Spotlight>
             <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.14),_transparent_42%),linear-gradient(180deg,_rgba(255,255,255,0.04),_rgba(255,255,255,0.01))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-8">
-              <div className="space-y-3">
+              <div className="space-y-5">
+                {temLoja ? (
+                  <UserTabs
+                    abaAtiva={visaoAtiva}
+                    tabs={visoesDisponiveis}
+                    onChange={(aba) => setVisaoAtiva(aba as PerfilVisaoId)}
+                    withDivider={false}
+                  />
+                ) : null}
+
+                <div className="space-y-3">
                 <span className="inline-flex rounded-full border border-yellow-400/30 bg-yellow-400/10 px-4 py-1 text-sm font-medium text-yellow-300">
-                  Central do perfil
+                  {heroBadge}
                 </span>
                 <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                  Meu perfil
+                  {heroTitulo}
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">
-                  Pagina preparada para receber dados reais da API, com componentes reutilizaveis,
-                  abas dinamicas e estados visuais de carregamento, vazio e erro.
+                  {heroDescricao}
                 </p>
+              </div>
               </div>
             </section>
           </Spotlight>
@@ -1021,24 +1309,61 @@ export function PerfilUsuarioPage() {
                 </ProfileSection>
               ) : (
                 <UserCard
-                  usuario={usuario}
+                  card={cardAtivo}
                   onEditAvatar={abrirModalAvatar}
-                  onEditProfile={abrirModalPerfil}
-                  onStoreAction={abrirModalLoja}
-                  storeActionLabel={temLoja ? "Editar loja" : "Criar loja"}
-                  canManageStore={podeGerenciarLoja}
+                  primaryAction={
+                    visaoAtiva === "loja"
+                      ? {
+                          label: "Editar loja",
+                          onClick: abrirModalLoja,
+                          icon: <Store className="h-4 w-4" />,
+                        }
+                      : {
+                          label: "Editar perfil",
+                          onClick: abrirModalPerfil,
+                          icon: <User className="h-4 w-4" />,
+                        }
+                  }
+                  secondaryAction={
+                    visaoAtiva === "loja"
+                      ? {
+                          label: "Editar perfil",
+                          onClick: abrirModalPerfil,
+                          icon: <User className="h-4 w-4" />,
+                          variant: "secondary",
+                        }
+                      : {
+                          label: temLoja ? "Editar loja" : "Criar loja",
+                          onClick: abrirModalLoja,
+                          icon: <Store className="h-4 w-4" />,
+                          disabled: !podeGerenciarLoja,
+                          variant: "secondary",
+                        }
+                  }
                 />
               )}
             </div>
 
             <div className="space-y-6">
               {/* Exibe o resumo numerico da conta mesmo quando o usuario ainda nao possui dados completos. */}
-              <UserStats stats={stats} />
+              <UserStats
+                title={visaoAtiva === "loja" ? "Desempenho da loja" : "Minha atividade"}
+                description={
+                  visaoAtiva === "loja"
+                    ? "Resumo rapido da operacao da loja para orientar vitrine, vendas e receita."
+                    : "Resumo rapido da conta de comprador com seus dados principais."
+                }
+                stats={statsAtivos}
+              />
 
               <ProfileSection title={tabContent.titulo} description={tabContent.descricao}>
                 {/* Controla a troca de abas e o recarregamento dinamico do conteudo. */}
                 <div className="space-y-5">
-                  <UserTabs abaAtiva={abaAtiva} onChange={setAbaAtiva} />
+                  <UserTabs
+                    abaAtiva={abaAtivaResolvida}
+                    tabs={abasDisponiveis}
+                    onChange={(aba) => setAbaAtiva(aba as PerfilTabId)}
+                  />
 
                   {/* Renderiza feedback visual adequado para cada estado da listagem. */}
                   {isConteudoLoading ? (
