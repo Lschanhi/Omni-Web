@@ -507,6 +507,16 @@ function normalizarCep(cep: string) {
   return cep.replace(/\D/g, "");
 }
 
+function formatarCep(cep: string) {
+  const cepNormalizado = normalizarCep(cep).slice(0, 8);
+
+  if (cepNormalizado.length <= 5) {
+    return cepNormalizado;
+  }
+
+  return `${cepNormalizado.slice(0, 5)}-${cepNormalizado.slice(5)}`;
+}
+
 function telefoneTemConteudo(telefone: PerfilTelefoneFormState | null) {
   return Boolean(telefone?.numero.trim());
 }
@@ -531,15 +541,51 @@ function enderecoTemConteudo(endereco: PerfilEnderecoFormState | null) {
   );
 }
 
-function enderecoEstaCompleto(endereco: PerfilEnderecoFormState) {
-  return Boolean(
-    endereco.tipoLogradouro.trim() &&
-      endereco.nomeEndereco.trim() &&
-      endereco.numero.trim() &&
-      normalizarCep(endereco.cep).length === 8 &&
-      endereco.cidade.trim() &&
-      endereco.uf.trim().length === 2,
-  );
+function obterErroEnderecoInvalido(endereco: PerfilEnderecoFormState | null) {
+  if (!endereco || !enderecoTemConteudo(endereco)) {
+    return null;
+  }
+
+  if (!endereco.tipoLogradouro.trim()) {
+    return "Selecione o tipo de logradouro do novo endereco.";
+  }
+
+  if (!endereco.nomeEndereco.trim()) {
+    return "Informe o nome do novo endereco.";
+  }
+
+  if (!endereco.numero.trim()) {
+    return "Informe o numero do novo endereco.";
+  }
+
+  if (normalizarCep(endereco.cep).length !== 8) {
+    return "Informe um CEP valido com 8 numeros para o novo endereco.";
+  }
+
+  if (!endereco.cidade.trim()) {
+    return "Informe a cidade do novo endereco.";
+  }
+
+  if (endereco.uf.trim().length !== 2) {
+    return "Informe uma UF valida com 2 letras para o novo endereco.";
+  }
+
+  return null;
+}
+
+function normalizarValorEnderecoFormulario(
+  field: keyof PerfilEnderecoFormState,
+  value: string,
+) {
+  if (field === "cep") {
+    return formatarCep(value);
+  }
+
+  if (field === "uf") {
+    return value.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase();
+  }
+
+  return value;
 }
 
 function mapearTelefoneParaFormulario(telefone: UsuarioTelefonePerfil): PerfilTelefoneFormState {
@@ -1052,7 +1098,12 @@ export function PerfilUsuarioPage() {
   ) {
     setEnderecosForm((currentData) =>
       currentData.map((endereco, currentIndex) =>
-        currentIndex === index ? { ...endereco, [field]: value } : endereco,
+        currentIndex === index
+          ? {
+              ...endereco,
+              [field]: normalizarValorEnderecoFormulario(field, value),
+            }
+          : endereco,
       ),
     );
     setPerfilErroAcao("");
@@ -1078,7 +1129,7 @@ export function PerfilUsuarioPage() {
   ) {
     setNovoEnderecoForm((currentData) => ({
       ...(currentData ?? ENDERECO_FORM_INICIAL),
-      [field]: value,
+      [field]: normalizarValorEnderecoFormulario(field, value),
     }));
     setPerfilErroAcao("");
   }
@@ -1436,10 +1487,10 @@ export function PerfilUsuarioPage() {
         password: perfilForm.password.trim() || undefined,
       };
 
-      if (novoEnderecoForm && enderecoTemConteudo(novoEnderecoForm) && !enderecoEstaCompleto(novoEnderecoForm)) {
-        throw new Error(
-          "Preencha todos os campos obrigatorios do novo endereco antes de salvar.",
-        );
+      const erroNovoEndereco = obterErroEnderecoInvalido(novoEnderecoForm);
+
+      if (erroNovoEndereco) {
+        throw new Error(erroNovoEndereco);
       }
 
       const totalTelefonesAposSalvar =
@@ -2161,7 +2212,7 @@ export function PerfilUsuarioPage() {
                       label="Nome do endereco"
                       id={`nomeEndereco-${index}`}
                       name={`nomeEndereco-${index}`}
-                      placeholder="Flor de Ouro"
+                      autoComplete="off"
                       value={endereco.nomeEndereco}
                       onChange={(event) =>
                         handleEnderecoExistenteChange(index, "nomeEndereco", event.target.value)
@@ -2173,7 +2224,7 @@ export function PerfilUsuarioPage() {
                       label="Numero"
                       id={`numeroEndereco-${index}`}
                       name={`numeroEndereco-${index}`}
-                      placeholder="249"
+                      autoComplete="off"
                       value={endereco.numero}
                       onChange={(event) =>
                         handleEnderecoExistenteChange(index, "numero", event.target.value)
@@ -2185,7 +2236,7 @@ export function PerfilUsuarioPage() {
                       label="Complemento"
                       id={`complementoEndereco-${index}`}
                       name={`complementoEndereco-${index}`}
-                      placeholder="Apto 12"
+                      autoComplete="off"
                       value={endereco.complemento}
                       onChange={(event) =>
                         handleEnderecoExistenteChange(index, "complemento", event.target.value)
@@ -2196,7 +2247,8 @@ export function PerfilUsuarioPage() {
                       label="CEP"
                       id={`cepEndereco-${index}`}
                       name={`cepEndereco-${index}`}
-                      placeholder="01001000"
+                      autoComplete="off"
+                      inputMode="numeric"
                       value={endereco.cep}
                       onChange={(event) =>
                         handleEnderecoExistenteChange(index, "cep", event.target.value)
@@ -2208,7 +2260,7 @@ export function PerfilUsuarioPage() {
                       label="Cidade"
                       id={`cidadeEndereco-${index}`}
                       name={`cidadeEndereco-${index}`}
-                      placeholder="Sao Paulo"
+                      autoComplete="off"
                       value={endereco.cidade}
                       onChange={(event) =>
                         handleEnderecoExistenteChange(index, "cidade", event.target.value)
@@ -2220,7 +2272,7 @@ export function PerfilUsuarioPage() {
                       label="UF"
                       id={`ufEndereco-${index}`}
                       name={`ufEndereco-${index}`}
-                      placeholder="SP"
+                      autoComplete="off"
                       value={endereco.uf}
                       onChange={(event) =>
                         handleEnderecoExistenteChange(index, "uf", event.target.value.toUpperCase())
@@ -2287,7 +2339,7 @@ export function PerfilUsuarioPage() {
                       label="Nome do endereco"
                       id="novoNomeEndereco"
                       name="novoNomeEndereco"
-                      placeholder="Flor de Ouro"
+                      autoComplete="off"
                       value={novoEnderecoForm.nomeEndereco}
                       onChange={(event) =>
                         handleNovoEnderecoChange("nomeEndereco", event.target.value)
@@ -2298,7 +2350,7 @@ export function PerfilUsuarioPage() {
                       label="Numero"
                       id="novoNumeroEndereco"
                       name="novoNumeroEndereco"
-                      placeholder="249"
+                      autoComplete="off"
                       value={novoEnderecoForm.numero}
                       onChange={(event) =>
                         handleNovoEnderecoChange("numero", event.target.value)
@@ -2309,7 +2361,7 @@ export function PerfilUsuarioPage() {
                       label="Complemento"
                       id="novoComplementoEndereco"
                       name="novoComplementoEndereco"
-                      placeholder="Apto 12"
+                      autoComplete="off"
                       value={novoEnderecoForm.complemento}
                       onChange={(event) =>
                         handleNovoEnderecoChange("complemento", event.target.value)
@@ -2320,7 +2372,8 @@ export function PerfilUsuarioPage() {
                       label="CEP"
                       id="novoCepEndereco"
                       name="novoCepEndereco"
-                      placeholder="01001000"
+                      autoComplete="off"
+                      inputMode="numeric"
                       value={novoEnderecoForm.cep}
                       onChange={(event) => handleNovoEnderecoChange("cep", event.target.value)}
                     />
@@ -2329,7 +2382,7 @@ export function PerfilUsuarioPage() {
                       label="Cidade"
                       id="novaCidadeEndereco"
                       name="novaCidadeEndereco"
-                      placeholder="Sao Paulo"
+                      autoComplete="off"
                       value={novoEnderecoForm.cidade}
                       onChange={(event) =>
                         handleNovoEnderecoChange("cidade", event.target.value)
@@ -2340,7 +2393,7 @@ export function PerfilUsuarioPage() {
                       label="UF"
                       id="novaUfEndereco"
                       name="novaUfEndereco"
-                      placeholder="SP"
+                      autoComplete="off"
                       value={novoEnderecoForm.uf}
                       onChange={(event) =>
                         handleNovoEnderecoChange("uf", event.target.value.toUpperCase())
