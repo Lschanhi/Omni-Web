@@ -1,5 +1,18 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { ImagePlus, LockIcon, Mail, MapPin, Minus, Phone, Plus, Store, Trash2, User } from "lucide-react";
+import {
+  ImagePlus,
+  LockIcon,
+  Mail,
+  MapPin,
+  Minus,
+  PackageCheck,
+  Phone,
+  Plus,
+  Store,
+  Trash2,
+  Truck,
+  User,
+} from "lucide-react";
 import { Botao } from "../../Components/Botao";
 import { Spotlight } from "../../Components/home/SpotLight";
 import { Input } from "../../Components/Input";
@@ -13,6 +26,15 @@ import { UserCard } from "../../Components/perfil/UserCard";
 import { UserStats } from "../../Components/perfil/UserStats";
 import { UserTabs, type UserTabOption } from "../../Components/perfil/UserTabs";
 import { usePerfilUsuarioData } from "../../hooks/usePerfilUsuarioData";
+import {
+  atualizarMinhaEntregaLoja,
+  criarMinhaEntregaLoja,
+  listarMinhasEntregasLoja,
+  removerMinhaEntregaLoja,
+  TIPOS_ENTREGA_OPTIONS,
+  type LojaEntregaMutacaoPayload,
+  type LojaEntregaOpcao,
+} from "../../Services/produtos/lojaEntregaService";
 import {
   atualizarProduto,
   criarProduto,
@@ -65,7 +87,7 @@ import type {
   UsuarioTelefonePerfil,
 } from "../../types/perfil";
 
-type ModalAberto = "avatar" | "perfil" | "loja" | "produto" | null;
+type ModalAberto = "avatar" | "perfil" | "loja" | "produto" | "entregas" | null;
 type AvatarDestino = "usuario" | "loja";
 
 type PerfilFormState = {
@@ -111,6 +133,16 @@ type ProdutoFormState = {
   descricao: string;
   imagemUrl: string;
   disponivel: boolean;
+};
+
+type LojaEntregaFormState = {
+  id?: number;
+  tipoEntregaId: string;
+  nome: string;
+  valorFrete: string;
+  prazoEntregaDias: string;
+  observacao: string;
+  ativa: boolean;
 };
 
 type CategoriaLojaOption = {
@@ -159,6 +191,15 @@ const PRODUTO_FORM_INICIAL: ProdutoFormState = {
   descricao: "",
   imagemUrl: "",
   disponivel: true,
+};
+
+const LOJA_ENTREGA_FORM_INICIAL: LojaEntregaFormState = {
+  tipoEntregaId: "1",
+  nome: "",
+  valorFrete: "0,00",
+  prazoEntregaDias: "0",
+  observacao: "",
+  ativa: true,
 };
 
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
@@ -222,6 +263,71 @@ function normalizarPrecoParaApi(valor: string) {
   }
 
   return valorNormalizado;
+}
+
+function normalizarFreteParaInput(valor?: number) {
+  if (typeof valor !== "number" || Number.isNaN(valor)) {
+    return "0,00";
+  }
+
+  return valor.toFixed(2).replace(".", ",");
+}
+
+function normalizarFreteParaApi(valor: string, tipoEntregaId: number) {
+  if (tipoEntregaId === 1) {
+    return 0;
+  }
+
+  const valorNormalizado = Number(valor.replace(/\./g, "").replace(",", "."));
+
+  if (!Number.isFinite(valorNormalizado) || valorNormalizado < 0) {
+    throw new Error("Informe um valor de frete valido para a opcao de entrega.");
+  }
+
+  return valorNormalizado;
+}
+
+function normalizarPrazoEntregaParaApi(valor: string) {
+  const prazoNormalizado = Number(valor);
+
+  if (!Number.isInteger(prazoNormalizado) || prazoNormalizado < 0 || prazoNormalizado > 365) {
+    throw new Error("Informe um prazo de entrega valido entre 0 e 365 dias.");
+  }
+
+  return prazoNormalizado;
+}
+
+function obterTipoEntregaLabel(tipoEntregaId: number | null | undefined) {
+  return TIPOS_ENTREGA_OPTIONS.find((option) => option.id === tipoEntregaId)?.label ?? "Entrega";
+}
+
+function criarEntregaLojaForm(opcao?: LojaEntregaOpcao): LojaEntregaFormState {
+  if (!opcao) {
+    return LOJA_ENTREGA_FORM_INICIAL;
+  }
+
+  return {
+    id: opcao.id,
+    tipoEntregaId: String(opcao.tipoEntregaId ?? 1),
+    nome: opcao.nome,
+    valorFrete: normalizarFreteParaInput(opcao.valorFrete),
+    prazoEntregaDias: String(opcao.prazoEntregaDias ?? 0),
+    observacao: opcao.observacao ?? "",
+    ativa: opcao.ativa,
+  };
+}
+
+function ordenarEntregasLoja(opcoes: LojaEntregaOpcao[]) {
+  return [...opcoes].sort((a, b) => {
+    const tipoA = a.tipoEntregaId ?? Number.MAX_SAFE_INTEGER;
+    const tipoB = b.tipoEntregaId ?? Number.MAX_SAFE_INTEGER;
+
+    if (tipoA !== tipoB) {
+      return tipoA - tipoB;
+    }
+
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
 }
 
 function criarProdutoForm(item?: PerfilGridItem): ProdutoFormState {
@@ -588,6 +694,20 @@ function normalizarValorEnderecoFormulario(
   return value;
 }
 
+function obterMensagemErroLoja(error: unknown) {
+  const fallback = "Nao foi possivel salvar a loja.";
+  const message = error instanceof Error ? error.message : fallback;
+
+  if (
+    message.includes("Cannot insert the value NULL into column 'Slug'") &&
+    message.includes("TBL_LOJA")
+  ) {
+    return "A API da loja no Azure ainda esta com o banco desatualizado: a coluna Slug continua obrigatoria, mas o contrato atual da loja nao envia mais esse campo. Aplique a migration `20260521044322_RemoveSkuSlugProdutosLojas` na API e tente novamente.";
+  }
+
+  return message || fallback;
+}
+
 function mapearTelefoneParaFormulario(telefone: UsuarioTelefonePerfil): PerfilTelefoneFormState {
   return {
     id: telefone.id,
@@ -799,6 +919,9 @@ export function PerfilUsuarioPage() {
   const [enderecosRemovidos, setEnderecosRemovidos] = useState<number[]>([]);
   const [lojaForm, setLojaForm] = useState<LojaFormState>(LOJA_FORM_INICIAL);
   const [produtoForm, setProdutoForm] = useState<ProdutoFormState>(PRODUTO_FORM_INICIAL);
+  const [entregaLojaForm, setEntregaLojaForm] =
+    useState<LojaEntregaFormState>(LOJA_ENTREGA_FORM_INICIAL);
+  const [entregasLoja, setEntregasLoja] = useState<LojaEntregaOpcao[]>([]);
   const [produtoImagemArquivo, setProdutoImagemArquivo] = useState<File | null>(null);
   const [tiposLogradouro, setTiposLogradouro] = useState<TipoLogradouroOption[]>(
     TIPOS_LOGRADOURO_FALLBACK,
@@ -806,9 +929,13 @@ export function PerfilUsuarioPage() {
   const [perfilErroAcao, setPerfilErroAcao] = useState("");
   const [lojaErroAcao, setLojaErroAcao] = useState("");
   const [produtoErroAcao, setProdutoErroAcao] = useState("");
+  const [entregaErroAcao, setEntregaErroAcao] = useState("");
   const [isSalvandoPerfil, setIsSalvandoPerfil] = useState(false);
   const [isSalvandoLoja, setIsSalvandoLoja] = useState(false);
   const [isSalvandoProduto, setIsSalvandoProduto] = useState(false);
+  const [isCarregandoEntregas, setIsCarregandoEntregas] = useState(false);
+  const [isSalvandoEntrega, setIsSalvandoEntrega] = useState(false);
+  const [entregaRemovendoId, setEntregaRemovendoId] = useState<number | null>(null);
   const [categoriaLojaAtiva, setCategoriaLojaAtiva] = useState("todas");
 
   const podeGerenciarLoja = Boolean(usuario?.enderecoPrincipalId && usuario?.telefonePrincipalId);
@@ -858,6 +985,12 @@ export function PerfilUsuarioPage() {
   const descricaoModalProduto = produtoForm.id
     ? "Atualize os dados do produto selecionado sem sair do painel da loja."
     : "Cadastre um novo produto para publica-lo na vitrine da loja.";
+  const entregaEmEdicao = Boolean(entregaLojaForm.id);
+  const tipoEntregaAtualId = Number(entregaLojaForm.tipoEntregaId || 1);
+  const tipoEntregaAtualEhRetirada = tipoEntregaAtualId === 1;
+  const tituloModalEntregas = "Opcoes de entrega";
+  const descricaoModalEntregas =
+    "Cadastre, ajuste ou remova as opcoes de entrega e os valores de frete da sua loja.";
 
   useEffect(() => {
     if (!temLoja && visaoAtiva === "loja") {
@@ -927,7 +1060,9 @@ export function PerfilUsuarioPage() {
     setPerfilErroAcao("");
     setLojaErroAcao("");
     setProdutoErroAcao("");
+    setEntregaErroAcao("");
     setProdutoForm(PRODUTO_FORM_INICIAL);
+    setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
     setProdutoImagemArquivo(null);
     setNovoTelefoneForm(null);
     setNovoEnderecoForm(null);
@@ -1015,6 +1150,28 @@ export function PerfilUsuarioPage() {
     setModalAberto("produto");
   }
 
+  async function abrirModalEntregas() {
+    if (!temLoja) {
+      return;
+    }
+
+    setEntregaErroAcao("");
+    setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
+    setModalAberto("entregas");
+    setIsCarregandoEntregas(true);
+
+    try {
+      const opcoes = await listarMinhasEntregasLoja();
+      setEntregasLoja(ordenarEntregasLoja(opcoes));
+    } catch (error) {
+      setEntregaErroAcao(
+        error instanceof Error ? error.message : "Nao foi possivel carregar as entregas da loja.",
+      );
+    } finally {
+      setIsCarregandoEntregas(false);
+    }
+  }
+
   function handlePerfilInputChange(event: ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
 
@@ -1023,6 +1180,136 @@ export function PerfilUsuarioPage() {
       [name]: value,
     }));
     setPerfilErroAcao("");
+  }
+
+  function handleEntregaInputChange(
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) {
+    const { name, value } = event.target;
+
+    setEntregaLojaForm((currentData) => {
+      const proximoEstado = {
+        ...currentData,
+        [name]: value,
+      };
+
+      if (name === "tipoEntregaId") {
+        const tipoEntregaId = Number(value);
+
+        if (!currentData.nome.trim()) {
+          proximoEstado.nome = obterTipoEntregaLabel(tipoEntregaId);
+        }
+
+        if (tipoEntregaId === 1) {
+          proximoEstado.valorFrete = "0,00";
+        }
+      }
+
+      return proximoEstado;
+    });
+    setEntregaErroAcao("");
+  }
+
+  function handleEntregaAtivaChange(event: ChangeEvent<HTMLInputElement>) {
+    const { checked } = event.target;
+
+    setEntregaLojaForm((currentData) => ({
+      ...currentData,
+      ativa: checked,
+    }));
+    setEntregaErroAcao("");
+  }
+
+  function handleEditarEntrega(opcao: LojaEntregaOpcao) {
+    setEntregaLojaForm(criarEntregaLojaForm(opcao));
+    setEntregaErroAcao("");
+  }
+
+  function handleNovaEntrega() {
+    setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
+    setEntregaErroAcao("");
+  }
+
+  function handleCancelarEntrega() {
+    setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
+    setEntregaErroAcao("");
+  }
+
+  async function handleSalvarEntregaLoja(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!temLoja || isSalvandoEntrega) {
+      return;
+    }
+
+    try {
+      setIsSalvandoEntrega(true);
+      setEntregaErroAcao("");
+
+      const tipoEntregaId = Number(entregaLojaForm.tipoEntregaId);
+
+      if (!TIPOS_ENTREGA_OPTIONS.some((option) => option.id === tipoEntregaId)) {
+        throw new Error("Selecione um tipo de entrega valido.");
+      }
+
+      if (!entregaLojaForm.nome.trim()) {
+        throw new Error("Informe o nome da opcao de entrega.");
+      }
+
+      const payload: LojaEntregaMutacaoPayload = {
+        tipoEntregaId,
+        nome: entregaLojaForm.nome.trim(),
+        valorFrete: normalizarFreteParaApi(entregaLojaForm.valorFrete, tipoEntregaId),
+        prazoEntregaDias: normalizarPrazoEntregaParaApi(entregaLojaForm.prazoEntregaDias),
+        observacao: entregaLojaForm.observacao.trim() || undefined,
+        ativa: entregaLojaForm.ativa,
+      };
+
+      const opcaoSalva = entregaLojaForm.id
+        ? await atualizarMinhaEntregaLoja(entregaLojaForm.id, payload)
+        : await criarMinhaEntregaLoja(payload);
+
+      setEntregasLoja((currentData) =>
+        ordenarEntregasLoja(
+          entregaLojaForm.id
+            ? currentData.map((opcao) => (opcao.id === opcaoSalva.id ? opcaoSalva : opcao))
+            : [...currentData, opcaoSalva],
+        ),
+      );
+      setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
+      alert(entregaLojaForm.id ? "Opcao de entrega atualizada com sucesso!" : "Opcao de entrega criada com sucesso!");
+    } catch (error) {
+      setEntregaErroAcao(
+        error instanceof Error ? error.message : "Nao foi possivel salvar a opcao de entrega.",
+      );
+    } finally {
+      setIsSalvandoEntrega(false);
+    }
+  }
+
+  async function handleRemoverEntregaLoja(opcao: LojaEntregaOpcao) {
+    if (entregaRemovendoId || isSalvandoEntrega) {
+      return;
+    }
+
+    try {
+      setEntregaRemovendoId(opcao.id);
+      setEntregaErroAcao("");
+
+      await removerMinhaEntregaLoja(opcao.id);
+
+      setEntregasLoja((currentData) => currentData.filter((item) => item.id !== opcao.id));
+
+      if (entregaLojaForm.id === opcao.id) {
+        setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
+      }
+    } catch (error) {
+      setEntregaErroAcao(
+        error instanceof Error ? error.message : "Nao foi possivel remover a opcao de entrega.",
+      );
+    } finally {
+      setEntregaRemovendoId(null);
+    }
   }
 
   function handleTelefoneExistenteChange(index: number, value: string) {
@@ -1661,7 +1948,7 @@ export function PerfilUsuarioPage() {
       recarregarDados();
       alert(loja ? "Loja atualizada com sucesso!" : "Loja criada com sucesso!");
     } catch (error) {
-      setLojaErroAcao(error instanceof Error ? error.message : "Nao foi possivel salvar a loja.");
+      setLojaErroAcao(obterMensagemErroLoja(error));
     } finally {
       setIsSalvandoLoja(false);
     }
@@ -1734,9 +2021,9 @@ export function PerfilUsuarioPage() {
                   secondaryAction={
                     visaoAtiva === "loja"
                       ? {
-                          label: "Editar perfil",
-                          onClick: abrirModalPerfil,
-                          icon: <User className="h-4 w-4" />,
+                          label: "Entregas",
+                          onClick: abrirModalEntregas,
+                          icon: <Truck className="h-4 w-4" />,
                           variant: "secondary",
                         }
                       : {
@@ -2427,6 +2714,258 @@ export function PerfilUsuarioPage() {
             </Botao>
           </div>
         </form>
+      </ProfileModal>
+
+      <ProfileModal
+        isOpen={modalAberto === "entregas"}
+        title={tituloModalEntregas}
+        description={descricaoModalEntregas}
+        onClose={fecharModal}
+      >
+        <div className="space-y-5">
+          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-white">Entregas cadastradas</h3>
+                <p className="text-sm text-neutral-400">
+                  Edite as modalidades da sua loja ou crie uma nova opcao de frete.
+                </p>
+              </div>
+
+              <Botao
+                type="button"
+                variant="secondary"
+                onClick={handleNovaEntrega}
+                className="h-11 sm:w-auto sm:px-5"
+                icon={<Plus className="h-4 w-4" />}
+              >
+                Nova opcao
+              </Botao>
+            </div>
+
+            {isCarregandoEntregas ? (
+              <ProfileSkeleton lines={3} cardCount={2} />
+            ) : entregasLoja.length > 0 ? (
+              <div className="space-y-3">
+                {entregasLoja.map((opcao) => {
+                  const estaEditando = entregaLojaForm.id === opcao.id;
+                  const estaRemovendo = entregaRemovendoId === opcao.id;
+
+                  return (
+                    <div
+                      key={opcao.id}
+                      className={`rounded-2xl border p-4 transition ${
+                        estaEditando
+                          ? "border-yellow-400/40 bg-yellow-400/10"
+                          : "border-white/10 bg-black/40"
+                      }`.trim()}
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-yellow-300">
+                              <Truck className="h-3.5 w-3.5" />
+                              {obterTipoEntregaLabel(opcao.tipoEntregaId)}
+                            </span>
+
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${
+                                opcao.ativa
+                                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                                  : "border-white/10 bg-white/5 text-neutral-400"
+                              }`.trim()}
+                            >
+                              {opcao.ativa ? "Ativa" : "Pausada"}
+                            </span>
+                          </div>
+
+                          <div>
+                            <p className="text-base font-semibold text-white">{opcao.nome}</p>
+                            <p className="text-sm text-neutral-400">{opcao.resumoCobertura}</p>
+                          </div>
+
+                          {opcao.observacao?.trim() ? (
+                            <p className="text-sm text-neutral-500">{opcao.observacao}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:items-end">
+                          <div className="text-sm text-neutral-300">
+                            <span className="font-medium text-white">{formatarMoeda(opcao.valorFrete)}</span>
+                            {" · "}
+                            prazo de {opcao.prazoEntregaDias} dia(s)
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditarEntrega(opcao)}
+                              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleRemoverEntregaLoja(opcao);
+                              }}
+                              disabled={estaRemovendo}
+                              className="rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200 transition hover:border-red-400/40 hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {estaRemovendo ? "Removendo..." : "Excluir"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
+                Nenhuma opcao de entrega foi cadastrada ainda. Use o formulario abaixo para criar a primeira.
+              </div>
+            )}
+          </section>
+
+          <form className="space-y-5" onSubmit={handleSalvarEntregaLoja}>
+            <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-white">
+                    {entregaEmEdicao ? "Editar opcao de entrega" : "Nova opcao de entrega"}
+                  </h3>
+                  <p className="text-sm text-neutral-400">
+                    Defina a modalidade, o frete e o prazo exibidos no checkout da loja.
+                  </p>
+                </div>
+
+                {entregaEmEdicao ? (
+                  <Botao
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCancelarEntrega}
+                    className="h-11 sm:w-auto sm:px-5"
+                  >
+                    Nova opcao
+                  </Botao>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="tipoEntregaId" className="text-[#6b6b6b]">
+                    Tipo de entrega
+                  </label>
+                  <select
+                    id="tipoEntregaId"
+                    name="tipoEntregaId"
+                    value={entregaLojaForm.tipoEntregaId}
+                    onChange={handleEntregaInputChange}
+                    className="w-full rounded-xl border border-[#6B6B6B] bg-black p-2 text-white outline-none transition focus:border-yellow-400"
+                  >
+                    {TIPOS_ENTREGA_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Input
+                  label="Nome exibido"
+                  id="entregaNome"
+                  name="nome"
+                  placeholder="Entrega expressa"
+                  value={entregaLojaForm.nome}
+                  onChange={handleEntregaInputChange}
+                  required
+                />
+
+                <Input
+                  label="Valor do frete"
+                  id="entregaValorFrete"
+                  name="valorFrete"
+                  placeholder="12,90"
+                  value={entregaLojaForm.valorFrete}
+                  onChange={handleEntregaInputChange}
+                  disabled={tipoEntregaAtualEhRetirada}
+                  required
+                />
+
+                <Input
+                  label="Prazo em dias"
+                  id="entregaPrazoEntregaDias"
+                  name="prazoEntregaDias"
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={entregaLojaForm.prazoEntregaDias}
+                  onChange={handleEntregaInputChange}
+                  required
+                />
+              </div>
+
+              {tipoEntregaAtualEhRetirada ? (
+                <p className="text-xs text-neutral-500">
+                  A modalidade Retirada usa frete zero automaticamente.
+                </p>
+              ) : null}
+
+              <div className="space-y-2">
+                <label htmlFor="entregaObservacao" className="text-[#6b6b6b]">
+                  Observacao
+                </label>
+                <textarea
+                  id="entregaObservacao"
+                  name="observacao"
+                  rows={3}
+                  value={entregaLojaForm.observacao}
+                  onChange={handleEntregaInputChange}
+                  placeholder="Ex.: Entregas para a capital em horario comercial."
+                  className="w-full rounded-xl border border-[#6B6B6B] bg-black p-3 text-white placeholder-[#6b6b6b] outline-none transition focus:border-yellow-400"
+                />
+              </div>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-200">
+                <input
+                  type="checkbox"
+                  checked={entregaLojaForm.ativa}
+                  onChange={handleEntregaAtivaChange}
+                  className="h-4 w-4 cursor-pointer accent-yellow-500"
+                />
+                Opcao ativa no checkout da loja
+              </label>
+            </section>
+
+            {entregaErroAcao ? <p className="text-sm text-red-400">{entregaErroAcao}</p> : null}
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Botao
+                type="button"
+                variant="secondary"
+                onClick={fecharModal}
+                className="h-11 sm:w-auto sm:px-6"
+              >
+                Fechar
+              </Botao>
+
+              <Botao
+                type="submit"
+                disabled={isSalvandoEntrega}
+                className="h-11 sm:w-auto sm:px-6"
+                icon={<PackageCheck className="h-4 w-4" />}
+              >
+                {isSalvandoEntrega
+                  ? "Salvando..."
+                  : entregaEmEdicao
+                    ? "Salvar entrega"
+                    : "Criar entrega"}
+              </Botao>
+            </div>
+          </form>
+        </div>
       </ProfileModal>
 
       <ProfileModal

@@ -19,6 +19,7 @@ interface UserCardProps {
   onEditAvatar: () => void;
   primaryAction: UserCardAction;
   secondaryAction?: UserCardAction;
+  tertiaryAction?: UserCardAction;
 }
 
 // Gera as iniciais para quando a foto real ainda nao estiver disponivel.
@@ -39,8 +40,12 @@ export function UserCard({
   onEditAvatar,
   primaryAction,
   secondaryAction,
+  tertiaryAction,
 }: UserCardProps) {
   const descricaoFoto = card?.rotulo ? `Alterar foto de ${card.rotulo.toLowerCase()}` : "Alterar foto";
+  const actions = [primaryAction, secondaryAction, tertiaryAction].filter(
+    Boolean,
+  ) as UserCardAction[];
 
   return (
     <ProfileSection className="h-full">
@@ -95,28 +100,27 @@ export function UserCard({
         <UserInfo items={card?.infoItems ?? []} />
 
         <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 px-4 py-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Botao
-              onClick={primaryAction.onClick}
-              disabled={primaryAction.disabled}
-              variant={primaryAction.variant === "secondary" ? "secondary" : "primary"}
-              className="h-11 text-sm"
-              icon={primaryAction.icon}
-            >
-              {primaryAction.label}
-            </Botao>
-
-            {secondaryAction ? (
+          <div
+            className={`grid gap-3 ${
+              actions.length >= 3 ? "sm:grid-cols-3" : actions.length === 2 ? "sm:grid-cols-2" : ""
+            }`.trim()}
+          >
+            {actions.map((action) => (
               <Botao
-                onClick={secondaryAction.onClick}
-                disabled={secondaryAction.disabled}
-                variant={secondaryAction.variant === "primary" ? "primary" : "secondary"}
-                className="h-11 border-white/10 bg-white/5 text-sm hover:bg-white/10"
-                icon={secondaryAction.icon}
+                key={action.label}
+                onClick={action.onClick}
+                disabled={action.disabled}
+                variant={action.variant === "primary" ? "primary" : "secondary"}
+                className={`h-11 text-sm ${
+                  action.variant === "primary"
+                    ? ""
+                    : "border-white/10 bg-white/5 hover:bg-white/10"
+                }`.trim()}
+                icon={action.icon}
               >
-                {secondaryAction.label}
+                {action.label}
               </Botao>
-            ) : null}
+            ))}
           </div>
 
           <p className="mt-3 text-sm text-neutral-400">

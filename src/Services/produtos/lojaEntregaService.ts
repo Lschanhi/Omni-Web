@@ -20,9 +20,30 @@ export type LojaEntregaFiltro = {
   uf?: string;
 };
 
+export type TipoEntregaOption = {
+  id: number;
+  label: string;
+};
+
 export type LojaEntregaOpcao = LojaEntregaOpcaoApiResponse & {
   tipoEntregaId: number | null;
 };
+
+export type LojaEntregaMutacaoPayload = {
+  tipoEntregaId: number;
+  nome: string;
+  valorFrete: number;
+  prazoEntregaDias: number;
+  observacao?: string;
+  ativa: boolean;
+};
+
+export const TIPOS_ENTREGA_OPTIONS: TipoEntregaOption[] = [
+  { id: 1, label: "Retirada" },
+  { id: 2, label: "Entrega local" },
+  { id: 3, label: "Correios" },
+  { id: 4, label: "Motoboy" },
+];
 
 function normalizarTexto(valor: string) {
   return valor
@@ -33,18 +54,20 @@ function normalizarTexto(valor: string) {
 }
 
 function resolverTipoEntregaId(tipoEntrega: string) {
-  switch (normalizarTexto(tipoEntrega)) {
-    case "retirada":
-      return 1;
-    case "entrega local":
-      return 2;
-    case "correios":
-      return 3;
-    case "motoboy":
-      return 4;
-    default:
-      return null;
-  }
+  const tipo = TIPOS_ENTREGA_OPTIONS.find(
+    (option) => normalizarTexto(option.label) === normalizarTexto(tipoEntrega),
+  );
+
+  return tipo?.id ?? null;
+}
+
+function mapearOpcaoEntrega(opcao: LojaEntregaOpcaoApiResponse): LojaEntregaOpcao {
+  return {
+    ...opcao,
+    valorFrete: Number(opcao.valorFrete ?? 0),
+    prazoEntregaDias: Number(opcao.prazoEntregaDias ?? 0),
+    tipoEntregaId: resolverTipoEntregaId(opcao.tipoEntrega),
+  };
 }
 
 export async function listarEntregasPublicasLoja(lojaId: number, filtro?: LojaEntregaFiltro) {
@@ -69,10 +92,46 @@ export async function listarEntregasPublicasLoja(lojaId: number, filtro?: LojaEn
 
   const opcoes = await apiRequest<LojaEntregaOpcaoApiResponse[]>(rota);
 
-  return opcoes.map((opcao) => ({
-    ...opcao,
-    valorFrete: Number(opcao.valorFrete ?? 0),
-    prazoEntregaDias: Number(opcao.prazoEntregaDias ?? 0),
-    tipoEntregaId: resolverTipoEntregaId(opcao.tipoEntrega),
-  }));
+  return opcoes.map(mapearOpcaoEntrega);
+}
+
+export async function listarMinhasEntregasLoja() {
+  const opcoes = await apiRequest<LojaEntregaOpcaoApiResponse[]>("/api/lojas/minha/entregas", {
+    authenticated: true,
+  });
+
+  return opcoes.map(mapearOpcaoEntrega);
+}
+
+export async function criarMinhaEntregaLoja(payload: LojaEntregaMutacaoPayload) {
+  const opcao = await apiRequest<LojaEntregaOpcaoApiResponse>("/api/lojas/minha/entregas", {
+    method: "POST",
+    authenticated: true,
+    body: payload,
+  });
+
+  return mapearOpcaoEntrega(opcao);
+}
+
+export async function atualizarMinhaEntregaLoja(
+  entregaId: number,
+  payload: LojaEntregaMutacaoPayload,
+) {
+  const opcao = await apiRequest<LojaEntregaOpcaoApiResponse>(
+    `/api/lojas/minha/entregas/${entregaId}`,
+    {
+      method: "PUT",
+      authenticated: true,
+      body: payload,
+    },
+  );
+
+  return mapearOpcaoEntrega(opcao);
+}
+
+export async function removerMinhaEntregaLoja(entregaId: number) {
+  return apiRequest<{ mensagem: string }>(`/api/lojas/minha/entregas/${entregaId}`, {
+    method: "DELETE",
+    authenticated: true,
+  });
 }
