@@ -8,6 +8,7 @@ import {
   type CarrinhoApiResponse,
 } from "../Services/carrinho/carrinhoService";
 import { AUTH_CHANGED_EVENT, isAuthenticated } from "../Services/auth/session";
+import { API_BASE_URL } from "../Services/http/apiClient";
 import type { CartItemType } from "../types/cart";
 
 type CartContextType = {
@@ -27,6 +28,43 @@ type CartContextType = {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+function criarImagemCarrinhoPlaceholder(label: string) {
+  const titulo = label.trim().slice(0, 20) || "OmniMarket";
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f59e0b" />
+          <stop offset="100%" stop-color="#111827" />
+        </linearGradient>
+      </defs>
+      <rect width="320" height="320" rx="32" fill="url(#bg)" />
+      <circle cx="250" cy="78" r="54" fill="rgba(255,255,255,0.12)" />
+      <circle cx="84" cy="236" r="72" fill="rgba(0,0,0,0.16)" />
+      <text x="28" y="166" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">
+        ${titulo}
+      </text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function resolverImagemCarrinho(url: string | null | undefined, nomeProduto: string) {
+  const valor = url?.trim() ?? "";
+
+  if (!valor) {
+    return criarImagemCarrinhoPlaceholder(nomeProduto);
+  }
+
+  if (/^(?:https?:|data:|blob:)/i.test(valor)) {
+    return valor;
+  }
+
+  const caminhoNormalizado = valor.startsWith("/") ? valor : `/${valor}`;
+  return `${API_BASE_URL}${caminhoNormalizado}`;
+}
+
 function mapearCarrinho(response: CarrinhoApiResponse): CartItemType[] {
   return response.itens.map((item) => ({
     produtoId: item.produtoId,
@@ -35,7 +73,7 @@ function mapearCarrinho(response: CarrinhoApiResponse): CartItemType[] {
     quantidade: item.quantidade,
     subtotal: Number(item.subtotal),
     lojaId: item.lojaId,
-    imagem: item.imagemPrincipal ?? undefined,
+    imagem: resolverImagemCarrinho(item.imagemPrincipal, item.nome),
     descricao: `${item.nomeLoja} • ${item.categoria}`,
     categoria: item.categoria,
     lojaNome: item.nomeLoja,

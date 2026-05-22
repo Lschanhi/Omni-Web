@@ -5,7 +5,6 @@ import {
   ChevronRight,
   LogIn,
   LogOut,
-  ShoppingCart,
   UserRound,
 } from "lucide-react";
 import LogoOmnimarket from "../assets/Logo_omnimarket.jpg";
@@ -23,11 +22,6 @@ const menuItems = [
     to: "/perfilUsuario",
     label: "Perfil",
     icon: UserRound,
-  },
-  {
-    to: "/carrinho",
-    label: "Carrinho",
-    icon: ShoppingCart,
   }
 ] as const;
 

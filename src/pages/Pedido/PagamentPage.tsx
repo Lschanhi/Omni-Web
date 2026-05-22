@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { PageLayout } from "../../Components/PageLayout";
 import { Input } from "../../Components/Input";
 import { useCart } from "../../context/CartContext";
@@ -50,6 +50,8 @@ type EnderecoExibicao = EnderecoApiResponse & {
   assinatura: string;
   idsAgrupados: number[];
 };
+
+type EtapaCheckout = "enderecos" | "entrega" | "pagamento";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -272,8 +274,31 @@ function formatarPrazoEntrega(prazoEntregaDias: number) {
   return `Receba em ate ${prazoEntregaDias} dias uteis`;
 }
 
+function criarImagemResumoPlaceholder(label: string) {
+  const titulo = label.trim().slice(0, 20) || "OmniMarket";
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f59e0b" />
+          <stop offset="100%" stop-color="#111827" />
+        </linearGradient>
+      </defs>
+      <rect width="320" height="320" rx="32" fill="url(#bg)" />
+      <circle cx="250" cy="78" r="54" fill="rgba(255,255,255,0.12)" />
+      <circle cx="84" cy="236" r="72" fill="rgba(0,0,0,0.16)" />
+      <text x="28" y="166" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">
+        ${titulo}
+      </text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 export function PagamentPage() {
   const [metodo, setMetodo] = useState("pix");
+  const [etapaAberta, setEtapaAberta] = useState<EtapaCheckout | null>("enderecos");
   const [freteSelecionadoId, setFreteSelecionadoId] = useState<number | null>(null);
   const [enderecoForm, setEnderecoForm] = useState<EnderecoFormState>(
     criarEnderecoFormInicial(),
@@ -323,6 +348,10 @@ export function PagamentPage() {
     opcoesEntrega.find((opcao) => opcao.id === freteSelecionadoId) ?? null;
   const valorFreteSelecionado = opcaoEntregaSelecionada?.valorFrete ?? 0;
   const total = subtotal + valorFreteSelecionado;
+
+  function alternarEtapa(etapa: EtapaCheckout) {
+    setEtapaAberta((currentEtapa) => (currentEtapa === etapa ? null : etapa));
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -514,6 +543,7 @@ export function PagamentPage() {
   }
 
   function handleAdicionarEndereco() {
+    setEtapaAberta("enderecos");
     setMostrarNovoEnderecoForm(true);
     setEnderecoForm(criarEnderecoFormInicial(tipoLogradouroPadrao, !temEnderecoSalvo));
     setErro("");
@@ -761,22 +791,37 @@ export function PagamentPage() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
-              <div className="mb-6 flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
-                    Etapa 1
+              <div className="mb-6 flex gap-4 border-b border-white/10 pb-5">
+                <button
+                  type="button"
+                  onClick={() => alternarEtapa("enderecos")}
+                  className="flex flex-1 items-start justify-between gap-4 text-left"
+                  aria-expanded={etapaAberta === "enderecos"}
+                >
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
+                      Etapa 1
+                    </span>
+                    <h2 className="text-2xl font-semibold text-white">Enderecos</h2>
+                    <p className="max-w-2xl text-sm leading-6 text-zinc-400">
+                      Revise os enderecos atuais e use o `+` para abrir mais um cadastro.
+                    </p>
+                  </div>
+
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-zinc-300 transition hover:border-yellow-400/40 hover:text-yellow-300">
+                    {etapaAberta === "enderecos" ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
                   </span>
-                  <h2 className="text-2xl font-semibold text-white">Enderecos</h2>
-                  <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                    Revise os enderecos atuais e use o `+` para abrir mais um cadastro.
-                  </p>
-                </div>
+                </button>
 
                 <button
                   type="button"
                   onClick={handleAdicionarEndereco}
                   disabled={mostrarNovoEnderecoForm}
-                  className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition ${
+                  className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition ${
                     mostrarNovoEnderecoForm
                       ? "cursor-not-allowed border-white/10 bg-white/5 text-neutral-600"
                       : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300 hover:border-yellow-400/50 hover:bg-yellow-400/20"
@@ -787,196 +832,214 @@ export function PagamentPage() {
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {temEnderecoSalvo ? (
-                  enderecosExibidos.map((endereco) => {
-                    const selecionado = enderecoSelecionado?.id === endereco.id;
+              {etapaAberta === "enderecos" ? (
+                <div className="space-y-4">
+                  {temEnderecoSalvo ? (
+                    enderecosExibidos.map((endereco) => {
+                      const selecionado = enderecoSelecionado?.id === endereco.id;
 
-                    return (
-                      <div
-                        key={endereco.id}
-                        className={`flex items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
-                          selecionado
-                            ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_0_1px_rgba(250,204,21,0.20)]"
-                            : "border-white/10 bg-black/20"
-                        }`}
-                      >
-                        <label
-                          htmlFor={`endereco-salvo-${endereco.id}`}
-                          className="flex min-w-0 flex-1 cursor-pointer items-start gap-4"
+                      return (
+                        <div
+                          key={endereco.id}
+                          className={`flex items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
+                            selecionado
+                              ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_0_1px_rgba(250,204,21,0.20)]"
+                              : "border-white/10 bg-black/20"
+                          }`}
                         >
-                          <input
-                            id={`endereco-salvo-${endereco.id}`}
-                            type="radio"
-                            name="endereco-salvo"
-                            checked={selecionado}
-                            onChange={() => handleSelecionarEndereco(endereco.id)}
-                            className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
-                          />
+                          <label
+                            htmlFor={`endereco-salvo-${endereco.id}`}
+                            className="flex min-w-0 flex-1 cursor-pointer items-start gap-4"
+                          >
+                            <input
+                              id={`endereco-salvo-${endereco.id}`}
+                              type="radio"
+                              name="endereco-salvo"
+                              checked={selecionado}
+                              onChange={() => handleSelecionarEndereco(endereco.id)}
+                              className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                            />
 
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-white">
-                              {formatarResumoEndereco(endereco)}
-                            </p>
-                            <p className="mt-1 text-sm text-zinc-400">
-                              {formatarDetalheEndereco(endereco)}
-                            </p>
-                          </div>
-                        </label>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-white">
+                                {formatarResumoEndereco(endereco)}
+                              </p>
+                              <p className="mt-1 text-sm text-zinc-400">
+                                {formatarDetalheEndereco(endereco)}
+                              </p>
+                            </div>
+                          </label>
 
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleRemoverEndereco(endereco);
-                          }}
-                          disabled={isRemovingAddress === endereco.id}
-                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-                          aria-label="Remover endereco"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-yellow-400/20 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
-                    Nenhum endereco ativo foi encontrado no seu perfil. Cadastre o primeiro para
-                    concluir a compra.
-                  </div>
-                )}
-
-                {mostrarNovoEnderecoForm ? (
-                  <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 p-4">
-                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium text-white">
-                        <Plus className="h-4 w-4 text-yellow-400" />
-                        <span>{temEnderecoSalvo ? "Novo endereco" : "Primeiro endereco"}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
-                          <input
-                            type="checkbox"
-                            checked={enderecoForm.isPrincipal}
-                            onChange={handleNovoEnderecoPrincipalChange}
-                            className="h-3.5 w-3.5 cursor-pointer accent-yellow-500"
-                          />
-                          Principal
-                        </label>
-
-                        {temEnderecoSalvo ? (
                           <button
                             type="button"
-                            onClick={handleCancelarNovoEndereco}
-                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleRemoverEndereco(endereco);
+                            }}
+                            disabled={isRemovingAddress === endereco.id}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label="Remover endereco"
                           >
-                            Cancelar
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                        ) : null}
-                      </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-yellow-400/20 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
+                      Nenhum endereco ativo foi encontrado no seu perfil. Cadastre o primeiro para
+                      concluir a compra.
                     </div>
+                  )}
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="flex flex-col gap-1">
-                        <label htmlFor="tipoLogradouro" className="text-[#6b6b6b]">
-                          Tipo de logradouro
-                        </label>
-                        <select
-                          id="tipoLogradouro"
-                          name="tipoLogradouro"
-                          value={enderecoForm.tipoLogradouro}
+                  {mostrarNovoEnderecoForm ? (
+                    <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 p-4">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2 text-sm font-medium text-white">
+                          <Plus className="h-4 w-4 text-yellow-400" />
+                          <span>{temEnderecoSalvo ? "Novo endereco" : "Primeiro endereco"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
+                            <input
+                              type="checkbox"
+                              checked={enderecoForm.isPrincipal}
+                              onChange={handleNovoEnderecoPrincipalChange}
+                              className="h-3.5 w-3.5 cursor-pointer accent-yellow-500"
+                            />
+                            Principal
+                          </label>
+
+                          {temEnderecoSalvo ? (
+                            <button
+                              type="button"
+                              onClick={handleCancelarNovoEndereco}
+                              className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+                            >
+                              Cancelar
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="flex flex-col gap-1">
+                          <label htmlFor="tipoLogradouro" className="text-[#6b6b6b]">
+                            Tipo de logradouro
+                          </label>
+                          <select
+                            id="tipoLogradouro"
+                            name="tipoLogradouro"
+                            value={enderecoForm.tipoLogradouro}
+                            onChange={handleEnderecoChange}
+                            className="h-12 w-full rounded-xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-yellow-400"
+                          >
+                            {tiposLogradouro.map((tipo) => (
+                              <option key={tipo.codigo} value={tipo.codigo}>
+                                {tipo.descricao}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <Input
+                          id="nomeEndereco"
+                          name="nomeEndereco"
+                          label="Nome do endereco"
+                          value={enderecoForm.nomeEndereco}
                           onChange={handleEnderecoChange}
-                          className="h-12 w-full rounded-xl border border-white/10 bg-black/40 px-4 text-white outline-none transition focus:border-yellow-400"
-                        >
-                          {tiposLogradouro.map((tipo) => (
-                            <option key={tipo.codigo} value={tipo.codigo}>
-                              {tipo.descricao}
-                            </option>
-                          ))}
-                        </select>
+                          className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                        />
+                        <Input
+                          id="numero"
+                          name="numero"
+                          label="Numero"
+                          inputMode="numeric"
+                          value={enderecoForm.numero}
+                          onChange={handleEnderecoChange}
+                          className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                        />
+                        <Input
+                          id="complemento"
+                          name="complemento"
+                          label="Complemento"
+                          value={enderecoForm.complemento}
+                          onChange={handleEnderecoChange}
+                          className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                        />
+                        <Input
+                          id="cep"
+                          name="cep"
+                          label="CEP"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          value={enderecoForm.cep}
+                          onChange={handleEnderecoChange}
+                          className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                        />
+                        <Input
+                          id="cidade"
+                          name="cidade"
+                          label="Cidade"
+                          autoComplete="address-level2"
+                          value={enderecoForm.cidade}
+                          onChange={handleEnderecoChange}
+                          className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                        />
+                        <Input
+                          id="uf"
+                          name="uf"
+                          label="UF"
+                          autoComplete="address-level1"
+                          maxLength={2}
+                          value={enderecoForm.uf}
+                          onChange={handleEnderecoChange}
+                          className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
+                        />
                       </div>
 
-                      <Input
-                        id="nomeEndereco"
-                        name="nomeEndereco"
-                        label="Nome do endereco"
-                        value={enderecoForm.nomeEndereco}
-                        onChange={handleEnderecoChange}
-                        className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
-                      />
-                      <Input
-                        id="numero"
-                        name="numero"
-                        label="Numero"
-                        inputMode="numeric"
-                        value={enderecoForm.numero}
-                        onChange={handleEnderecoChange}
-                        className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
-                      />
-                      <Input
-                        id="complemento"
-                        name="complemento"
-                        label="Complemento"
-                        value={enderecoForm.complemento}
-                        onChange={handleEnderecoChange}
-                        className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
-                      />
-                      <Input
-                        id="cep"
-                        name="cep"
-                        label="CEP"
-                        inputMode="numeric"
-                        autoComplete="postal-code"
-                        value={enderecoForm.cep}
-                        onChange={handleEnderecoChange}
-                        className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
-                      />
-                      <Input
-                        id="cidade"
-                        name="cidade"
-                        label="Cidade"
-                        autoComplete="address-level2"
-                        value={enderecoForm.cidade}
-                        onChange={handleEnderecoChange}
-                        className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
-                      />
-                      <Input
-                        id="uf"
-                        name="uf"
-                        label="UF"
-                        autoComplete="address-level1"
-                        maxLength={2}
-                        value={enderecoForm.uf}
-                        onChange={handleEnderecoChange}
-                        className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
-                      />
+                      {temEnderecoSalvo ? (
+                        <p className="mt-4 text-sm text-zinc-400">
+                          Se voce cancelar este formulario, o checkout volta a usar o endereco
+                          selecionado acima.
+                        </p>
+                      ) : null}
                     </div>
-
-                    {temEnderecoSalvo ? (
-                      <p className="mt-4 text-sm text-zinc-400">
-                        Se voce cancelar este formulario, o checkout volta a usar o endereco
-                        selecionado acima.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
 
             <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
-              <fieldset className="space-y-4">
-                <div className="mb-2 flex flex-col gap-2 border-b border-white/10 pb-5">
+              <button
+                type="button"
+                onClick={() => alternarEtapa("entrega")}
+                className="mb-6 flex w-full items-start justify-between gap-4 border-b border-white/10 pb-5 text-left"
+                aria-expanded={etapaAberta === "entrega"}
+              >
+                <div className="space-y-2">
                   <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
                     Etapa 2
                   </span>
-                  <legend className="text-2xl font-semibold text-white">Opcoes de entrega</legend>
+                  <h2 className="text-2xl font-semibold text-white">Opcoes de entrega</h2>
                   <p className="text-sm leading-6 text-zinc-400">
                     Escolha a modalidade que melhor se encaixa no seu prazo e preferencia.
                   </p>
                 </div>
 
-                <div className="grid gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-zinc-300 transition hover:border-yellow-400/40 hover:text-yellow-300">
+                  {etapaAberta === "entrega" ? (
+                    <ChevronUp className="h-5 w-5" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5" />
+                  )}
+                </span>
+              </button>
+
+              {etapaAberta === "entrega" ? (
+                <fieldset className="space-y-4">
+                  <div className="grid gap-3">
                   {isLoadingEntregas ? (
                     <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-5 text-sm text-zinc-300">
                       Carregando opcoes de entrega da loja...
@@ -1032,22 +1095,40 @@ export function PagamentPage() {
                         );
                       })
                     : null}
-                </div>
-              </fieldset>
+                  </div>
+                </fieldset>
+              ) : null}
             </section>
 
             <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
-              <div className="mb-6 flex flex-col gap-2 border-b border-white/10 pb-5">
-                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
-                  Etapa 3
-                </span>
-                <h2 className="text-2xl font-semibold text-white">Forma de pagamento</h2>
-                <p className="text-sm leading-6 text-zinc-400">
-                  Selecione a forma de pagamento desejada para concluir seu checkout.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => alternarEtapa("pagamento")}
+                className="mb-6 flex w-full items-start justify-between gap-4 border-b border-white/10 pb-5 text-left"
+                aria-expanded={etapaAberta === "pagamento"}
+              >
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
+                    Etapa 3
+                  </span>
+                  <h2 className="text-2xl font-semibold text-white">Forma de pagamento</h2>
+                  <p className="text-sm leading-6 text-zinc-400">
+                    Selecione a forma de pagamento desejada para concluir seu checkout.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-zinc-300 transition hover:border-yellow-400/40 hover:text-yellow-300">
+                  {etapaAberta === "pagamento" ? (
+                    <ChevronUp className="h-5 w-5" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5" />
+                  )}
+                </span>
+              </button>
+
+              {etapaAberta === "pagamento" ? (
+                <>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {METODOS_PAGAMENTO.map((tipo) => {
                   const selecionado = metodo === tipo.id;
                   const indisponivel = tipo.id === "boleto";
@@ -1134,7 +1215,7 @@ export function PagamentPage() {
                 </div>
               ) : null}
 
-              {metodo === "debito" ? (
+                  {metodo === "debito" ? (
                 <div className="mt-5 grid grid-cols-1 gap-4 rounded-2xl border border-yellow-400/20 bg-black/30 p-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <Input
@@ -1168,6 +1249,8 @@ export function PagamentPage() {
                     className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
                   />
                 </div>
+                  ) : null}
+                </>
               ) : null}
             </section>
           </div>
@@ -1179,9 +1262,13 @@ export function PagamentPage() {
               {carrinhoItens.map((item) => (
                 <div key={item.produtoId} className="flex gap-3">
                   <img
-                    src={item.imagem}
+                    src={item.imagem ?? criarImagemResumoPlaceholder(item.nome)}
                     alt={item.nome}
-                    className="h-16 w-16 rounded-2xl object-cover"
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = criarImagemResumoPlaceholder(item.nome);
+                    }}
+                    className="h-16 w-16 shrink-0 rounded-2xl border border-white/10 bg-black/30 object-cover"
                   />
 
                   <div className="flex-1 py-2">
