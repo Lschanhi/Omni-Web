@@ -78,7 +78,13 @@ async function parseResponse(response: Response) {
 
 function extractErrorMessage(payload: unknown, fallback: string) {
   if (typeof payload === "string" && payload.trim()) {
-    return payload;
+    const sanitizedPayload = payload
+      .split(/\s+at Microsoft\./i)[0]
+      .split(/\s+at System\./i)[0]
+      .split(/\s+HEADERS\s*=+/i)[0]
+      .trim();
+
+    return sanitizedPayload || fallback;
   }
 
   if (payload && typeof payload === "object") {
