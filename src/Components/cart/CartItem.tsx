@@ -1,5 +1,6 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { CartItemType } from "../../types/cart";
+import { criarImagemPlaceholder } from "../../Services/produtos/produtoService";
 
 type CartItemProps = {
   item: CartItemType;
@@ -27,6 +28,10 @@ export function CartItem({
             <img
               src={item.imagem}
               alt={item.nome}
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = criarImagemPlaceholder(item.nome);
+              }}
               className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
             />
           ) : (

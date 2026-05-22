@@ -1,6 +1,7 @@
 import { Star } from "lucide-react";
 import type { HomeProduct } from "../../types/home";
 import { Link } from "@tanstack/react-router";
+import { criarImagemPlaceholder } from "../../Services/produtos/produtoService";
 
 // Define a estrutura esperada para um card individual de produto.
 type ProductCardProps = {
@@ -22,6 +23,10 @@ export function ProductCard({ produto }: ProductCardProps) {
         <img
           src={produto.imagem}
           alt={produto.nome}
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = criarImagemPlaceholder(produto.nome);
+          }}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />
 

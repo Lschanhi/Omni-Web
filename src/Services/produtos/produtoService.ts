@@ -85,7 +85,7 @@ function criarCategoriaId(categoria: string) {
     .replace(/^-+|-+$/g, "") || "geral";
 }
 
-function criarImagemPlaceholder(label: string) {
+export function criarImagemPlaceholder(label: string) {
   const titulo = label.trim().slice(0, 22) || "OmniMarket";
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">

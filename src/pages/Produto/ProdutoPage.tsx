@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Botao } from "../../Components/Botao";
 import { PageLayout } from "../../Components/PageLayout";
 import { useCart } from "../../context/CartContext";
-import { obterProdutoPorId } from "../../Services/produtos/produtoService";
+import { criarImagemPlaceholder, obterProdutoPorId } from "../../Services/produtos/produtoService";
 import type { HomeProduct } from "../../types/home";
 
 export function ProdutoPage() {
@@ -127,6 +127,10 @@ export function ProdutoPage() {
                 <img
                   src={produto.imagem}
                   alt={produto.nome}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = criarImagemPlaceholder(produto.nome);
+                  }}
                   className="block h-full w-full rounded-2xl object-contain"
                 />
               </div>
