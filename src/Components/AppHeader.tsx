@@ -36,8 +36,6 @@ export default function AppHeader() {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-
     const sincronizarAutenticacao = () => {
       const usuarioSessao = getStoredUser();
       setAutenticado(isAuthenticated());
@@ -49,8 +47,17 @@ export default function AppHeader() {
     window.addEventListener(AUTH_CHANGED_EVENT, sincronizarAutenticacao);
     window.addEventListener("storage", sincronizarAutenticacao);
 
+    return () => {
+      window.removeEventListener(AUTH_CHANGED_EVENT, sincronizarAutenticacao);
+      window.removeEventListener("storage", sincronizarAutenticacao);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     async function carregarAvatarAtual() {
-      if (!isAuthenticated()) {
+      if (!autenticado) {
         return;
       }
 
@@ -62,13 +69,23 @@ export default function AppHeader() {
         }
 
         const avatarAtual = perfil.avatarUrl ?? "";
+        const nomeAtual = perfil.nome ?? "";
         setAvatarUsuario(avatarAtual);
+
+        if (nomeAtual.trim()) {
+          setNomeUsuario(nomeAtual);
+        }
 
         const usuarioSessao = getStoredUser();
 
-        if (usuarioSessao && (usuarioSessao.avatarUrl ?? "") !== avatarAtual) {
+        if (
+          usuarioSessao &&
+          ((usuarioSessao.avatarUrl ?? "") !== avatarAtual ||
+            usuarioSessao.nome !== (nomeAtual.trim() || usuarioSessao.nome))
+        ) {
           updateStoredUser({
             ...usuarioSessao,
+            nome: nomeAtual.trim() || usuarioSessao.nome,
             avatarUrl: avatarAtual || null,
           });
         }
@@ -81,10 +98,8 @@ export default function AppHeader() {
 
     return () => {
       isMounted = false;
-      window.removeEventListener(AUTH_CHANGED_EVENT, sincronizarAutenticacao);
-      window.removeEventListener("storage", sincronizarAutenticacao);
     };
-  }, []);
+  }, [autenticado]);
 
   useEffect(() => {
     if (!menuAberto) {
