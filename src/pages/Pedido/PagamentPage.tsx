@@ -791,6 +791,48 @@ export function PagamentPage() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
+              <div className="mb-6 border-b border-white/10 pb-5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
+                  Resumo do pedido
+                </span>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Produtos selecionados</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Confira os itens da compra antes de seguir para endereco, entrega e pagamento.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {carrinhoItens.map((item) => (
+                  <article
+                    key={item.produtoId}
+                    className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-4"
+                  >
+                    <img
+                      src={item.imagem ?? criarImagemResumoPlaceholder(item.nome)}
+                      alt={item.nome}
+                      onError={(event) => {
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src = criarImagemResumoPlaceholder(item.nome);
+                      }}
+                      className="h-20 w-20 shrink-0 rounded-2xl border border-white/10 bg-black/30 object-cover"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-semibold text-white">{item.nome}</p>
+                      <p className="mt-1 text-sm text-zinc-400">
+                        Valor unitario: {formatarMoeda(item.preco)}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-400">Quantidade: {item.quantidade}</p>
+                      <p className="mt-2 text-sm font-semibold text-yellow-400">
+                        Valor total: {formatarMoeda(item.subtotal)}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:p-6">
               <div className="mb-6 flex gap-4 border-b border-white/10 pb-5">
                 <button
                   type="button"
@@ -1255,32 +1297,17 @@ export function PagamentPage() {
             </section>
           </div>
 
-          <div className="lg:col-span-1">
-            <aside className="space-y-4 rounded-2xl border border-white/10 p-5">
-              <h2 className="text-xl font-semibold">Resumo do pedido</h2>
+          <div className="lg:col-span-1 lg:self-start">
+            <aside className="space-y-4 rounded-2xl border border-white/10 p-5 lg:sticky lg:top-28">
+              <div className="border-b border-white/10 pb-4">
+                <h2 className="text-xl font-semibold">Totais do pedido</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Este bloco acompanha a rolagem para voce revisar subtotal, frete e total a
+                  qualquer momento.
+                </p>
+              </div>
 
-              {carrinhoItens.map((item) => (
-                <div key={item.produtoId} className="flex gap-3">
-                  <img
-                    src={item.imagem ?? criarImagemResumoPlaceholder(item.nome)}
-                    alt={item.nome}
-                    onError={(event) => {
-                      event.currentTarget.onerror = null;
-                      event.currentTarget.src = criarImagemResumoPlaceholder(item.nome);
-                    }}
-                    className="h-16 w-16 shrink-0 rounded-2xl border border-white/10 bg-black/30 object-cover"
-                  />
-
-                  <div className="flex-1 py-2">
-                    <p className="pb-2 text-[16px]">{item.nome}</p>
-                    <p className="font-semibold">Valor unitario: {formatarMoeda(item.preco)}</p>
-                    <p>Quantidade: {item.quantidade}</p>
-                    <p className="text-yellow-400">Valor total: {formatarMoeda(item.subtotal)}</p>
-                  </div>
-                </div>
-              ))}
-
-              <div className="border-t border-white/10 pt-4">
+              <div className="pt-1">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm text-zinc-300">
                     <span>Subtotal</span>
