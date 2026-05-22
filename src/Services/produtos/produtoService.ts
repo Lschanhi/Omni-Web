@@ -18,6 +18,7 @@ type ProdutoApiResponse = {
   nomeLoja: string;
   slugLoja: string;
   imagens?: string[] | null;
+  midias?: ProdutoMidiaApiItem[] | null;
 };
 
 type ProdutoMutacaoApiResponse =
@@ -193,12 +194,23 @@ function normalizarImagensProduto(imagens: Array<string | null | undefined> | nu
     : [];
 }
 
+function combinarImagensProduto(...grupos: string[][]) {
+  return Array.from(new Set(grupos.flat().filter(Boolean)));
+}
+
 function normalizarMidias(response: ProdutoMidiaApiResponse) {
   const itens = Array.isArray(response)
     ? response
     : response?.midias ?? response?.Midias ?? response?.data ?? response?.itens ?? [];
 
   return itens.map(extrairUrlMidia).filter(Boolean);
+}
+
+function extrairImagensProduto(produto: Pick<ProdutoApiResponse, "imagens" | "midias">) {
+  return combinarImagensProduto(
+    normalizarImagensProduto(produto.imagens),
+    normalizarMidias(produto.midias ?? []),
+  );
 }
 
 export async function listarMidiasProduto(produtoId: number) {
@@ -223,7 +235,7 @@ export async function enviarMidiasProduto(produtoId: number, arquivos: File[]) {
 }
 
 function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
-  const imagens = normalizarImagensProduto(produto.imagens);
+  const imagens = extrairImagensProduto(produto);
   const imagemSalvaLocalmente = getStoredProdutoImage(produto.id);
   const imagemPrincipal =
     imagens[0] ?? imagemSalvaLocalmente ?? criarImagemPlaceholder(produto.nome);
@@ -256,12 +268,13 @@ export async function listarProdutos() {
   const produtos = await apiRequest<ProdutoApiResponse[]>("/api/produto");
   const produtosComMidia = await Promise.all(
     produtos.map(async (produto) => {
-      const imagens = normalizarImagensProduto(produto.imagens);
+      const imagens = extrairImagensProduto(produto);
 
       if (imagens.length > 0) {
         return {
           ...produto,
           imagens,
+          midias: produto.midias ?? null,
         };
       }
 
@@ -269,6 +282,7 @@ export async function listarProdutos() {
       return {
         ...produto,
         imagens: midias,
+        midias: produto.midias ?? null,
       };
     }),
   );
@@ -278,16 +292,18 @@ export async function listarProdutos() {
 
 export async function obterProdutoPorId(id: number) {
   const produto = await apiRequest<ProdutoApiResponse>(`/api/produto/${id}`);
-  const imagens = normalizarImagensProduto(produto.imagens);
+  const imagens = extrairImagensProduto(produto);
   const produtoComMidia =
     imagens.length > 0
       ? {
           ...produto,
           imagens,
+          midias: produto.midias ?? null,
         }
       : {
           ...produto,
           imagens: await listarMidiasProduto(id).catch(() => []),
+          midias: produto.midias ?? null,
         };
 
   return mapearProduto(produtoComMidia);

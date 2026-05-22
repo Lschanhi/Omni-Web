@@ -3,8 +3,9 @@ import { ShoppingCart } from "lucide-react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Botao } from "../../Components/Botao";
 import { PageLayout } from "../../Components/PageLayout";
+import { ProdutoImagem } from "../../Components/produto/ProdutoImagem";
 import { useCart } from "../../context/CartContext";
-import { criarImagemPlaceholder, obterProdutoPorId } from "../../Services/produtos/produtoService";
+import { obterProdutoPorId } from "../../Services/produtos/produtoService";
 import type { HomeProduct } from "../../types/home";
 
 export function ProdutoPage() {
@@ -124,13 +125,11 @@ export function ProdutoPage() {
           <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,_rgba(255,255,255,0.05),_rgba(255,255,255,0.02))] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
             <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
               <div className="overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.12),_transparent_45%),linear-gradient(180deg,_rgba(255,255,255,0.03),_rgba(255,255,255,0.01))] lg:min-h-[36rem] lg:border-b-0 lg:border-r">
-                <img
+                <ProdutoImagem
                   src={produto.imagem}
+                  sources={produto.imagens}
                   alt={produto.nome}
-                  onError={(event) => {
-                    event.currentTarget.onerror = null;
-                    event.currentTarget.src = criarImagemPlaceholder(produto.nome);
-                  }}
+                  placeholderLabel={produto.nome}
                   className="block h-full w-full rounded-2xl object-contain"
                 />
               </div>

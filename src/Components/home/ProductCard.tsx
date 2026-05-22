@@ -1,7 +1,7 @@
 import { Star } from "lucide-react";
 import type { HomeProduct } from "../../types/home";
 import { Link } from "@tanstack/react-router";
-import { criarImagemPlaceholder } from "../../Services/produtos/produtoService";
+import { ProdutoImagem } from "../produto/ProdutoImagem";
 
 // Define a estrutura esperada para um card individual de produto.
 type ProductCardProps = {
@@ -20,13 +20,11 @@ export function ProductCard({ produto }: ProductCardProps) {
     <article className="group overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,_rgba(255,255,255,0.05),_rgba(255,255,255,0.02))] shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-yellow-400/30">
       {/* Area principal da imagem com selo opcional de destaque. */}
       <div className="relative aspect-[4/3] overflow-hidden bg-neutral-950">
-        <img
+        <ProdutoImagem
           src={produto.imagem}
+          sources={produto.imagens}
           alt={produto.nome}
-          onError={(event) => {
-            event.currentTarget.onerror = null;
-            event.currentTarget.src = criarImagemPlaceholder(produto.nome);
-          }}
+          placeholderLabel={produto.nome}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />
 

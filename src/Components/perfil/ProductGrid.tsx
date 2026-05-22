@@ -1,4 +1,5 @@
 import type { PerfilGridItem } from "../../types/perfil";
+import { ProdutoImagem } from "../produto/ProdutoImagem";
 
 // Renderiza os cards de produtos, vendas ou compras de forma reutilizavel.
 interface ProductGridProps {
@@ -13,10 +14,12 @@ export function ProductGrid({ itens, onItemClick }: ProductGridProps) {
         const content = (
           <>
             <div className="flex h-40 items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.14),_transparent_60%),linear-gradient(180deg,_rgba(255,255,255,0.05),_rgba(255,255,255,0.02))]">
-              {item.imagemUrl ? (
-                <img
+              {item.imagemUrl || item.imagens?.length ? (
+                <ProdutoImagem
                   src={item.imagemUrl}
+                  sources={item.imagens}
                   alt={item.titulo}
+                  placeholderLabel={item.titulo}
                   className="h-full w-full object-cover"
                 />
               ) : (
