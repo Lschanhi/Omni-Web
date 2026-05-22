@@ -1,5 +1,5 @@
 import type { HomeProduct } from "../../types/home";
-import { apiRequest } from "../http/apiClient";
+import { API_BASE_URL, apiRequest } from "../http/apiClient";
 import { getStoredProdutoImage } from "./produtoImageStorage";
 
 type ProdutoApiResponse = {
@@ -143,7 +143,7 @@ function extrairProdutoDaResposta(response: ProdutoMutacaoApiResponse) {
 
 function extrairUrlMidia(midia: ProdutoMidiaApiItem) {
   if (typeof midia === "string") {
-    return midia.trim();
+    return resolverUrlImagemProduto(midia);
   }
 
   if (!midia || typeof midia !== "object") {
@@ -166,7 +166,31 @@ function extrairUrlMidia(midia: ProdutoMidiaApiItem) {
     midia.arquivo?.url,
   ];
 
-  return candidatos.find((valor) => typeof valor === "string" && valor.trim())?.trim() ?? "";
+  const url =
+    candidatos.find((valor) => typeof valor === "string" && valor.trim())?.trim() ?? "";
+
+  return resolverUrlImagemProduto(url);
+}
+
+function resolverUrlImagemProduto(url: string | null | undefined) {
+  const valor = url?.trim() ?? "";
+
+  if (!valor) {
+    return "";
+  }
+
+  if (/^(?:https?:|data:|blob:)/i.test(valor)) {
+    return valor;
+  }
+
+  const caminhoNormalizado = valor.startsWith("/") ? valor : `/${valor}`;
+  return `${API_BASE_URL}${caminhoNormalizado}`;
+}
+
+function normalizarImagensProduto(imagens: Array<string | null | undefined> | null | undefined) {
+  return Array.isArray(imagens)
+    ? imagens.map((imagem) => resolverUrlImagemProduto(imagem)).filter(Boolean)
+    : [];
 }
 
 function normalizarMidias(response: ProdutoMidiaApiResponse) {
@@ -199,7 +223,7 @@ export async function enviarMidiasProduto(produtoId: number, arquivos: File[]) {
 }
 
 function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
-  const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
+  const imagens = normalizarImagensProduto(produto.imagens);
   const imagemSalvaLocalmente = getStoredProdutoImage(produto.id);
   const imagemPrincipal =
     imagens[0] ?? imagemSalvaLocalmente ?? criarImagemPlaceholder(produto.nome);
@@ -232,10 +256,13 @@ export async function listarProdutos() {
   const produtos = await apiRequest<ProdutoApiResponse[]>("/api/produto");
   const produtosComMidia = await Promise.all(
     produtos.map(async (produto) => {
-      const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
+      const imagens = normalizarImagensProduto(produto.imagens);
 
       if (imagens.length > 0) {
-        return produto;
+        return {
+          ...produto,
+          imagens,
+        };
       }
 
       const midias = await listarMidiasProduto(produto.id).catch(() => []);
@@ -251,10 +278,13 @@ export async function listarProdutos() {
 
 export async function obterProdutoPorId(id: number) {
   const produto = await apiRequest<ProdutoApiResponse>(`/api/produto/${id}`);
-  const imagens = Array.isArray(produto.imagens) ? produto.imagens.filter(Boolean) : [];
+  const imagens = normalizarImagensProduto(produto.imagens);
   const produtoComMidia =
     imagens.length > 0
-      ? produto
+      ? {
+          ...produto,
+          imagens,
+        }
       : {
           ...produto,
           imagens: await listarMidiasProduto(id).catch(() => []),
