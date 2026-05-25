@@ -1,6 +1,8 @@
 import type { HomeProduct } from "../../types/home";
 import { API_BASE_URL, apiRequest } from "../http/apiClient";
 import { getStoredProdutoImage } from "./produtoImageStorage";
+import { getStoredLojaAvatar } from "../user/lojaAvatarStorage";
+import { obterLojaPublica } from "../user/lojaPublicaService";
 
 type ProdutoApiResponse = {
   id: number;
@@ -17,6 +19,16 @@ type ProdutoApiResponse = {
   lojaId: number;
   nomeLoja: string;
   slugLoja: string;
+  avatarLojaUrl?: string | null;
+  lojaAvatarUrl?: string | null;
+  logoLojaUrl?: string | null;
+  lojaLogoUrl?: string | null;
+  loja?: {
+    id?: number;
+    nomeFantasia?: string | null;
+    avatarUrl?: string | null;
+    logoUrl?: string | null;
+  } | null;
   imagens?: string[] | null;
   midias?: ProdutoMidiaApiItem[] | null;
 };
@@ -221,6 +233,47 @@ function extrairImagensProduto(produto: Pick<ProdutoApiResponse, "imagens" | "mi
   );
 }
 
+function extrairAvatarLoja(produto: ProdutoApiResponse) {
+  const avatarSalvoLocalmente = getStoredLojaAvatar(produto.lojaId);
+  const candidatos = [
+    produto.avatarLojaUrl,
+    produto.lojaAvatarUrl,
+    produto.logoLojaUrl,
+    produto.lojaLogoUrl,
+    produto.loja?.avatarUrl,
+    produto.loja?.logoUrl,
+    avatarSalvoLocalmente,
+  ];
+
+  const url =
+    candidatos.find((valor) => typeof valor === "string" && valor.trim().length > 0)?.trim() ??
+    "";
+
+  return resolverUrlImagemProduto(url);
+}
+
+async function enriquecerProdutoComLojaPublica(produto: ProdutoApiResponse) {
+  if (extrairAvatarLoja(produto) || !produto.lojaId) {
+    return produto;
+  }
+
+  const lojaPublica = await obterLojaPublica(produto.lojaId);
+
+  if (!lojaPublica) {
+    return produto;
+  }
+
+  return {
+    ...produto,
+    loja: {
+      id: lojaPublica.id ?? produto.loja?.id,
+      nomeFantasia: lojaPublica.nomeFantasia ?? produto.loja?.nomeFantasia ?? produto.nomeLoja,
+      avatarUrl: lojaPublica.avatarUrl ?? produto.loja?.avatarUrl ?? null,
+      logoUrl: lojaPublica.logoUrl ?? produto.loja?.logoUrl ?? null,
+    },
+  };
+}
+
 export async function listarMidiasProduto(produtoId: number) {
   const response = await apiRequest<ProdutoMidiaApiResponse>(`/api/produtos/${produtoId}/midias`);
   return normalizarMidias(response);
@@ -247,6 +300,7 @@ function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
   const imagemSalvaLocalmente = getStoredProdutoImage(produto.id);
   const imagemPrincipal =
     imagens[0] ?? imagemSalvaLocalmente ?? criarImagemPlaceholder(produto.nome);
+  const lojaAvatarUrl = extrairAvatarLoja(produto);
 
   return {
     id: produto.id,
@@ -266,7 +320,8 @@ function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
     estoque: produto.estoque,
     disponivel: produto.disponivel,
     lojaId: produto.lojaId,
-    lojaNome: produto.nomeLoja,
+    lojaNome: produto.loja?.nomeFantasia?.trim() || produto.nomeLoja,
+    lojaAvatarUrl: lojaAvatarUrl || undefined,
     slugLoja: produto.slugLoja,
     totalAvaliacoes: produto.totalAvaliacoes,
   };
@@ -295,7 +350,11 @@ export async function listarProdutos() {
     }),
   );
 
-  return produtosComMidia.map(mapearProduto);
+  const produtosEnriquecidos = await Promise.all(
+    produtosComMidia.map(enriquecerProdutoComLojaPublica),
+  );
+
+  return produtosEnriquecidos.map(mapearProduto);
 }
 
 export async function obterProdutoPorId(id: number) {
@@ -314,7 +373,8 @@ export async function obterProdutoPorId(id: number) {
           midias: produto.midias ?? null,
         };
 
-  return mapearProduto(produtoComMidia);
+  const produtoEnriquecido = await enriquecerProdutoComLojaPublica(produtoComMidia);
+  return mapearProduto(produtoEnriquecido);
 }
 
 export async function criarProduto(payload: ProdutoMutacaoPayload) {

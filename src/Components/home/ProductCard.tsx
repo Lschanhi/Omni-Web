@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 import type { HomeProduct } from "../../types/home";
 import { Link } from "@tanstack/react-router";
 import { ProdutoImagem } from "../produto/ProdutoImagem";
+import { StoreIdentityBadge } from "../produto/StoreIdentityBadge";
 
 // Define a estrutura esperada para um card individual de produto.
 type ProductCardProps = {
@@ -10,6 +11,9 @@ type ProductCardProps = {
 
 // Renderiza um card de produto com foco em imagem, preco e avaliacao.
 export function ProductCard({ produto }: ProductCardProps) {
+  const destaqueSecundario =
+    produto.destaque?.trim() && produto.destaque !== produto.lojaNome ? produto.destaque : "";
+
   return (
     /*este Link serve para redirecionar o user por uma rota dinamica para uma tela especifica do produto clicado com base no id do produto. Depois envia esse id para o ProdutoPage*/
     <Link
@@ -28,9 +32,16 @@ export function ProductCard({ produto }: ProductCardProps) {
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />
 
-        {produto.destaque ? (
-          <span className="absolute left-4 top-4 rounded-full border border-yellow-400/30 bg-black/65 px-3 py-1 text-xs font-medium text-yellow-300 backdrop-blur-sm">
-            {produto.destaque}
+        <StoreIdentityBadge
+          nome={produto.lojaNome}
+          avatarUrl={produto.lojaAvatarUrl}
+          compact
+          className="absolute left-4 top-4 max-w-[calc(100%-2rem)]"
+        />
+
+        {destaqueSecundario ? (
+          <span className="absolute right-4 top-4 rounded-full border border-yellow-400/30 bg-black/65 px-3 py-1 text-xs font-medium text-yellow-300 backdrop-blur-sm">
+            {destaqueSecundario}
           </span>
         ) : null}
       </div>
