@@ -1209,6 +1209,11 @@ export function PerfilUsuarioPage() {
     setLojaFeedback(null);
   }
 
+  function handleCancelarModoExclusaoCategorias() {
+    setCategoriaLojaModoExclusao(false);
+    setCategoriaLojaPendenteExclusao(null);
+  }
+
   function handleSolicitarRemocaoCategoriaLoja(categoria: CategoriaLojaOption) {
     if (categoriaLojaRemovendoId) {
       return;
@@ -2243,41 +2248,15 @@ export function PerfilUsuarioPage() {
                       />
 
                       {visaoAtiva === "loja" ? (
-                        <div className="flex items-center gap-2">
-                          {isStoreProductsTab && categoriasDaLoja.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={handleAlternarModoExclusaoCategorias}
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 ${
-                                categoriaLojaModoExclusao
-                                  ? "border-red-400/40 bg-red-400/10 text-red-200"
-                                  : "border-white/10 bg-black/40 text-neutral-300 hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-200"
-                              }`.trim()}
-                              aria-label={
-                                categoriaLojaModoExclusao
-                                  ? "Desativar modo de exclusao de categorias"
-                                  : "Ativar modo de exclusao de categorias"
-                              }
-                              title={
-                                categoriaLojaModoExclusao
-                                  ? "Desativar modo de exclusao de categorias"
-                                  : "Ativar modo de exclusao de categorias"
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-
-                          <button
-                            type="button"
-                            onClick={() => abrirModalProduto()}
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-400/10 text-yellow-300 transition hover:border-yellow-400/50 hover:bg-yellow-400/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
-                            aria-label="Adicionar produto"
-                            title="Adicionar produto"
-                          >
-                            <Plus className="h-5 w-5" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => abrirModalProduto()}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-400/10 text-yellow-300 transition hover:border-yellow-400/50 hover:bg-yellow-400/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                          aria-label="Adicionar produto"
+                          title="Adicionar produto"
+                        >
+                          <Plus className="h-5 w-5" />
+                        </button>
                       ) : null}
                     </div>
 
@@ -2347,7 +2326,7 @@ export function PerfilUsuarioPage() {
                         ) : null}
 
                         {categoriasDaLoja.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
                               onClick={() => setCategoriaLojaAtiva("todas")}
@@ -2407,6 +2386,41 @@ export function PerfilUsuarioPage() {
                                 </div>
                               );
                             })}
+
+                            <button
+                              type="button"
+                              onClick={
+                                categoriaLojaModoExclusao
+                                  ? handleCancelarModoExclusaoCategorias
+                                  : handleAlternarModoExclusaoCategorias
+                              }
+                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 ${
+                                categoriaLojaModoExclusao
+                                  ? "border-red-400/40 bg-red-400/10 text-red-200"
+                                  : "border-white/10 bg-black text-neutral-400 hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-200"
+                              }`.trim()}
+                              aria-label={
+                                categoriaLojaModoExclusao
+                                  ? "Cancelar exclusao de categorias"
+                                  : "Ativar modo de exclusao de categorias"
+                              }
+                              title={
+                                categoriaLojaModoExclusao
+                                  ? "Cancelar exclusao de categorias"
+                                  : "Ativar modo de exclusao de categorias"
+                              }
+                            >
+                              {categoriaLojaModoExclusao ? (
+                                <X className="h-3.5 w-3.5" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              <span>
+                                {categoriaLojaModoExclusao
+                                  ? "Cancelar exclusao"
+                                  : "Excluir categoria"}
+                              </span>
+                            </button>
                           </div>
                         ) : (
                           <p className="text-sm text-neutral-500">

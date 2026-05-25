@@ -6,6 +6,19 @@ import { PageLayout } from "../../Components/PageLayout";
 type SuccessState = {
   checkoutResult?: {
     pedidoId: number;
+    pedidoIds?: number[];
+    pedidos?: Array<{
+      pedidoId: number;
+      lojaNome: string;
+      total: number;
+      statusPagamento: string;
+      itens: Array<{
+        produtoId: number;
+        nome: string;
+        quantidade: number;
+        subtotal: number;
+      }>;
+    }>;
     total: number;
     metodoPagamento: string;
     statusPagamento: string;
@@ -23,6 +36,20 @@ export function SuccessPage() {
   const navigate = useNavigate();
   const state = location.state as SuccessState;
   const checkoutResult = state.checkoutResult;
+  const pedidosGerados =
+    checkoutResult?.pedidos?.length
+      ? checkoutResult.pedidos
+      : checkoutResult
+        ? [
+            {
+              pedidoId: checkoutResult.pedidoId,
+              lojaNome: "Pedido principal",
+              total: checkoutResult.total,
+              statusPagamento: checkoutResult.statusPagamento,
+              itens: checkoutResult.itens,
+            },
+          ]
+        : [];
 
   if (!checkoutResult) {
     return (
@@ -90,9 +117,29 @@ export function SuccessPage() {
               </span>
             </div>
 
-            <div className="flex justify-between">
-              <span className="text-gray-400">Pedido:</span>
-              <span>#{checkoutResult.pedidoId}</span>
+            <div className="space-y-3">
+              <span className="text-gray-400">
+                {pedidosGerados.length > 1 ? "Pedidos gerados:" : "Pedido:"}
+              </span>
+
+              {pedidosGerados.map((pedidoAtual) => (
+                <div
+                  key={pedidoAtual.pedidoId}
+                  className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="font-medium text-white">
+                      #{pedidoAtual.pedidoId} - {pedidoAtual.lojaNome}
+                    </span>
+                    <span className="text-yellow-400">
+                      {pedidoAtual.total.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
