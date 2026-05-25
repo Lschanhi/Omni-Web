@@ -28,6 +28,7 @@ import {
   atualizarProduto,
   criarProduto,
   enviarMidiasProduto,
+  listarProdutos,
   listarMidiasProduto,
   removerCategoriaDaLoja,
   removerProduto,
@@ -1153,6 +1154,19 @@ export function PerfilUsuarioPage() {
           saveStoredProdutoImage(produtoIdPersistido, produtoForm.imagemUrl.trim());
         } else {
           removeStoredProdutoImage(produtoIdPersistido);
+        }
+
+        if (!payload.disponivel) {
+          const produtosPublicados = await listarProdutos().catch(() => []);
+          const produtoAindaPublicado = produtosPublicados.some(
+            (produto) => produto.id === produtoIdPersistido && produto.disponivel !== false,
+          );
+
+          if (produtoAindaPublicado) {
+            throw new Error(
+              "O produto foi salvo, mas ainda aparece como disponivel na vitrine. Verifique se o back-end esta persistindo corretamente o campo de disponibilidade.",
+            );
+          }
         }
       }
 

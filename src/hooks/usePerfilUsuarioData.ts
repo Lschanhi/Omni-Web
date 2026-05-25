@@ -291,7 +291,7 @@ export function usePerfilUsuarioData() {
                 categoriaNome: produto.categoriaNome,
                 precoNumero: produto.preco,
                 estoque: produto.estoque,
-                disponivel: true,
+                disponivel: produto.disponivel ?? true,
                 descricao: produto.descricao,
                 imagens: produto.imagens,
               }))

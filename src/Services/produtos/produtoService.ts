@@ -11,8 +11,8 @@ type ProdutoApiResponse = {
   sku?: string;
   preco: number;
   estoque: number;
-  disponivel: boolean;
-  statusPublicacao: string;
+  disponivel?: boolean | string | number | null;
+  statusPublicacao?: string | null;
   descricao?: string | null;
   mediaAvaliacao: number;
   totalAvaliacoes: number;
@@ -98,6 +98,76 @@ function normalizarTexto(valor: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function normalizarDisponibilidadeProduto(
+  disponivel: ProdutoApiResponse["disponivel"],
+  statusPublicacao?: string | null,
+) {
+  if (typeof disponivel === "boolean") {
+    return disponivel;
+  }
+
+  if (typeof disponivel === "number") {
+    return disponivel !== 0;
+  }
+
+  if (typeof disponivel === "string") {
+    const valorNormalizado = normalizarTexto(disponivel.trim());
+
+    if (!valorNormalizado) {
+      return true;
+    }
+
+    if (
+      [
+        "false",
+        "0",
+        "nao",
+        "inativo",
+        "indisponivel",
+        "despublicado",
+        "removido",
+        "excluido",
+      ].includes(valorNormalizado)
+    ) {
+      return false;
+    }
+
+    if (
+      [
+        "true",
+        "1",
+        "sim",
+        "ativo",
+        "disponivel",
+        "publicado",
+      ].includes(valorNormalizado)
+    ) {
+      return true;
+    }
+  }
+
+  const statusNormalizado = normalizarTexto(statusPublicacao?.trim() ?? "");
+
+  if (!statusNormalizado) {
+    return true;
+  }
+
+  if (
+    [
+      "inativo",
+      "indisponivel",
+      "despublicado",
+      "removido",
+      "excluido",
+      "pausado",
+    ].includes(statusNormalizado)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function criarCategoriaId(categoria: string) {
@@ -318,7 +388,10 @@ function mapearProduto(produto: ProdutoApiResponse): HomeProduct {
     descricao: produto.descricao ?? "",
     sku: produto.sku,
     estoque: produto.estoque,
-    disponivel: produto.disponivel,
+    disponivel: normalizarDisponibilidadeProduto(
+      produto.disponivel,
+      produto.statusPublicacao,
+    ),
     lojaId: produto.lojaId,
     lojaNome: produto.loja?.nomeFantasia?.trim() || produto.nomeLoja,
     lojaAvatarUrl: lojaAvatarUrl || undefined,
