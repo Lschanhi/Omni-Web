@@ -2335,10 +2335,10 @@ export function PerfilUsuarioPage() {
                                     ? handleCancelarModoExclusaoCategorias
                                     : handleAlternarModoExclusaoCategorias
                                 }
-                                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 ${
+                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 ${
                                   categoriaLojaModoExclusao
-                                    ? "border-red-400/40 bg-red-400/10 text-red-200"
-                                    : "border-white/10 bg-black text-neutral-400 hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-200"
+                                    ? "border-red-400/40 bg-red-400/10 text-red-200 hover:border-red-400/60 hover:bg-red-400/15 focus-visible:ring-red-400/50"
+                                    : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300 hover:border-yellow-400/50 hover:bg-yellow-400/15 focus-visible:ring-yellow-400/60"
                                 }`.trim()}
                                 aria-label={
                                   categoriaLojaModoExclusao
@@ -2352,9 +2352,9 @@ export function PerfilUsuarioPage() {
                                 }
                               >
                                 {categoriaLojaModoExclusao ? (
-                                  <X className="h-3.5 w-3.5" />
+                                  <X className="h-5 w-5" />
                                 ) : (
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-5 w-5" />
                                 )}
                               </button>
                             </div>
