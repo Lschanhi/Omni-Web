@@ -40,6 +40,8 @@ import {
   criarProduto,
   enviarMidiasProduto,
   listarMidiasProduto,
+  removerCategoriaDaLoja,
+  removerProduto,
   type ProdutoMutacaoPayload,
 } from "../../Services/produtos/produtoService";
 import {
@@ -933,10 +935,12 @@ export function PerfilUsuarioPage() {
   const [isSalvandoPerfil, setIsSalvandoPerfil] = useState(false);
   const [isSalvandoLoja, setIsSalvandoLoja] = useState(false);
   const [isSalvandoProduto, setIsSalvandoProduto] = useState(false);
+  const [isRemovendoProduto, setIsRemovendoProduto] = useState(false);
   const [isCarregandoEntregas, setIsCarregandoEntregas] = useState(false);
   const [isSalvandoEntrega, setIsSalvandoEntrega] = useState(false);
   const [entregaRemovendoId, setEntregaRemovendoId] = useState<number | null>(null);
   const [categoriaLojaAtiva, setCategoriaLojaAtiva] = useState("todas");
+  const [categoriaLojaRemovendoId, setCategoriaLojaRemovendoId] = useState<string | null>(null);
 
   const podeGerenciarLoja = Boolean(usuario?.enderecoPrincipalId && usuario?.telefonePrincipalId);
   const produtosDaLoja = tabItems.produtos;
@@ -985,6 +989,7 @@ export function PerfilUsuarioPage() {
   const descricaoModalProduto = produtoForm.id
     ? "Atualize os dados do produto selecionado sem sair do painel da loja."
     : "Cadastre um novo produto para publica-lo na vitrine da loja.";
+  const isProcessandoProduto = isSalvandoProduto || isRemovendoProduto;
   const entregaEmEdicao = Boolean(entregaLojaForm.id);
   const tipoEntregaAtualId = Number(entregaLojaForm.tipoEntregaId || 1);
   const tipoEntregaAtualEhRetirada = tipoEntregaAtualId === 1;
@@ -1148,6 +1153,47 @@ export function PerfilUsuarioPage() {
     setProdutoForm(criarProdutoForm(item));
     setProdutoImagemArquivo(null);
     setModalAberto("produto");
+  }
+
+  async function handleRemoverCategoriaLoja(categoria: CategoriaLojaOption) {
+    if (categoriaLojaRemovendoId) {
+      return;
+    }
+
+    const mensagemConfirmacao =
+      categoria.totalProdutos === 1
+        ? `Deseja mesmo excluir a categoria "${categoria.nome}"? O produto vinculado sera removido da vitrine, mas continuara salvo no banco.`
+        : `Deseja mesmo excluir a categoria "${categoria.nome}"? Os ${categoria.totalProdutos} produtos vinculados serao removidos da vitrine, mas continuarao salvos no banco.`;
+
+    if (!window.confirm(mensagemConfirmacao)) {
+      return;
+    }
+
+    try {
+      setCategoriaLojaRemovendoId(categoria.id);
+
+      const resposta = await removerCategoriaDaLoja(categoria.nome, true);
+      const produtosDaCategoria = produtosDaLoja.filter((item) => item.categoriaId === categoria.id);
+
+      produtosDaCategoria.forEach((item) => {
+        if (item.produtoId) {
+          removeStoredProdutoImage(item.produtoId);
+        }
+      });
+
+      if (categoriaLojaAtiva === categoria.id) {
+        setCategoriaLojaAtiva("todas");
+      }
+
+      recarregarDados();
+      alert(resposta.mensagem);
+    } catch (error) {
+      alert(
+        error instanceof Error ? error.message : "Nao foi possivel excluir a categoria da loja.",
+      );
+    } finally {
+      setCategoriaLojaRemovendoId(null);
+    }
   }
 
   async function abrirModalEntregas() {
@@ -1674,10 +1720,44 @@ export function PerfilUsuarioPage() {
     setProdutoErroAcao("");
   }
 
+  async function handleRemoverProdutoAtual() {
+    if (!produtoForm.id || isProcessandoProduto) {
+      return;
+    }
+
+    const nomeProduto = produtoForm.nome.trim() || "este produto";
+    const confirmouExclusao = window.confirm(
+      `Deseja mesmo excluir o produto "${nomeProduto}"? Ele deixara de aparecer para os usuarios, mas continuara salvo no banco.`,
+    );
+
+    if (!confirmouExclusao) {
+      return;
+    }
+
+    try {
+      setIsRemovendoProduto(true);
+      setProdutoErroAcao("");
+
+      await removerProduto(produtoForm.id);
+      removeStoredProdutoImage(produtoForm.id);
+
+      fecharModal();
+      setAbaAtiva("produtos");
+      recarregarDados();
+      alert("Produto excluido com sucesso!");
+    } catch (error) {
+      setProdutoErroAcao(
+        error instanceof Error ? error.message : "Nao foi possivel excluir o produto.",
+      );
+    } finally {
+      setIsRemovendoProduto(false);
+    }
+  }
+
   async function handleSalvarProduto(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isSalvandoProduto) {
+    if (isProcessandoProduto) {
       return;
     }
 
@@ -2101,23 +2181,51 @@ export function PerfilUsuarioPage() {
                               Todas
                             </button>
 
-                            {categoriasDaLoja.map((categoria) => (
-                              <button
-                                key={categoria.id}
-                                type="button"
-                                onClick={() => setCategoriaLojaAtiva(categoria.id)}
-                                className={`rounded-full border px-3 py-2 text-sm transition ${
-                                  categoriaLojaAtiva === categoria.id
-                                    ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
-                                    : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
-                                }`.trim()}
-                              >
-                                {categoria.nome}{" "}
-                                <span className="text-xs text-neutral-500">
-                                  ({categoria.totalProdutos})
-                                </span>
-                              </button>
-                            ))}
+                            {categoriasDaLoja.map((categoria) => {
+                              const categoriaAtiva = categoriaLojaAtiva === categoria.id;
+                              const categoriaRemovendo = categoriaLojaRemovendoId === categoria.id;
+
+                              return (
+                                <div
+                                  key={categoria.id}
+                                  className={`flex items-center overflow-hidden rounded-full border transition ${
+                                    categoriaAtiva
+                                      ? "border-yellow-400/40 bg-yellow-400/10"
+                                      : "border-white/10 bg-black"
+                                  }`.trim()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => setCategoriaLojaAtiva(categoria.id)}
+                                    className={`px-3 py-2 text-sm transition ${
+                                      categoriaAtiva
+                                        ? "text-yellow-300"
+                                        : "text-neutral-400 hover:text-white"
+                                    }`.trim()}
+                                  >
+                                    {categoria.nome}{" "}
+                                    <span className="text-xs text-neutral-500">
+                                      ({categoria.totalProdutos})
+                                    </span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleRemoverCategoriaLoja(categoria)}
+                                    disabled={categoriaRemovendo}
+                                    className={`border-l px-3 py-2 transition ${
+                                      categoriaAtiva
+                                        ? "border-yellow-400/20 text-red-200 hover:bg-red-400/15"
+                                        : "border-white/10 text-red-300 hover:bg-red-400/10"
+                                    } ${categoriaRemovendo ? "cursor-not-allowed opacity-60" : ""}`.trim()}
+                                    aria-label={`Excluir categoria ${categoria.nome}`}
+                                    title={`Excluir categoria ${categoria.nome}`}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="text-sm text-neutral-500">
@@ -3101,19 +3209,34 @@ export function PerfilUsuarioPage() {
 
           {produtoErroAcao ? <p className="text-sm text-red-400">{produtoErroAcao}</p> : null}
 
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Botao
-              type="button"
-              variant="secondary"
-              onClick={fecharModal}
-              className="h-11 sm:w-auto sm:px-6"
-            >
-              Cancelar
-            </Botao>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Botao
+                type="button"
+                variant="secondary"
+                onClick={fecharModal}
+                className="h-11 sm:w-auto sm:px-6"
+              >
+                Cancelar
+              </Botao>
+
+              {produtoForm.id ? (
+                <Botao
+                  type="button"
+                  variant="secondary"
+                  disabled={isProcessandoProduto}
+                  onClick={() => void handleRemoverProdutoAtual()}
+                  className="h-11 border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/20 sm:w-auto sm:px-6"
+                  icon={<Trash2 className="h-4 w-4" />}
+                >
+                  {isRemovendoProduto ? "Excluindo..." : "Excluir produto"}
+                </Botao>
+              ) : null}
+            </div>
 
             <Botao
               type="submit"
-              disabled={isSalvandoProduto}
+              disabled={isProcessandoProduto}
               className="h-11 sm:w-auto sm:px-6"
             >
               {isSalvandoProduto
