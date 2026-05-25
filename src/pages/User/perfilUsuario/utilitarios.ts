@@ -139,6 +139,58 @@ export function normalizarPrecoParaApi(valor: string) {
   return valorNormalizado;
 }
 
+export function criarCategoriaProdutoId(categoria: string) {
+  return categoria
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "geral";
+}
+
+export function criarProdutoGridItem({
+  categoria,
+  descricao,
+  disponivel,
+  estoque,
+  id,
+  imagemUrl,
+  imagens,
+  nome,
+  preco,
+}: {
+  categoria: string;
+  descricao?: string;
+  disponivel: boolean;
+  estoque: number;
+  id: number;
+  imagemUrl?: string;
+  imagens?: string[];
+  nome: string;
+  preco: number;
+}): PerfilGridItem {
+  const imagensNormalizadas =
+    imagens?.filter((imagem) => typeof imagem === "string" && imagem.trim().length > 0) ?? [];
+  const imagemPrincipal = imagemUrl?.trim() || imagensNormalizadas[0] || undefined;
+
+  return {
+    id: `produto-${id}`,
+    titulo: nome,
+    subtitulo: categoria,
+    valor: formatadorMoeda.format(preco),
+    imagemUrl: imagemPrincipal,
+    badge: disponivel ? "Publicado" : "Pausado",
+    produtoId: id,
+    categoriaId: criarCategoriaProdutoId(categoria),
+    categoriaNome: categoria,
+    precoNumero: preco,
+    estoque,
+    disponivel,
+    descricao,
+    imagens: imagemPrincipal && imagensNormalizadas.length === 0 ? [imagemPrincipal] : imagensNormalizadas,
+  };
+}
+
 export function normalizarFreteParaInput(valor?: number) {
   if (typeof valor !== "number" || Number.isNaN(valor)) {
     return "0,00";
