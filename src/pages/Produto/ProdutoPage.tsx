@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Botao } from "../../Components/Botao";
 import { PageLayout } from "../../Components/PageLayout";
 import { ProdutoImagem } from "../../Components/produto/ProdutoImagem";
+import { StoreIdentityBadge } from "../../Components/produto/StoreIdentityBadge";
 import { useCart } from "../../context/CartContext";
 import { obterProdutoPorId } from "../../Services/produtos/produtoService";
 import type { HomeProduct } from "../../types/home";
@@ -144,9 +145,10 @@ export function ProdutoPage() {
               <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10">
                 <div className="space-y-6">
                   <div className="space-y-3">
-                    <span className="inline-flex w-fit rounded-full border border-yellow-400/30 bg-yellow-400/10 px-4 py-1 text-sm font-medium text-yellow-300">
-                      {produto.lojaNome ?? "Detalhes do produto"}
-                    </span>
+                    <StoreIdentityBadge
+                      nome={produto.lojaNome ?? "Detalhes do produto"}
+                      avatarUrl={produto.lojaAvatarUrl}
+                    />
 
                     <div className="space-y-3">
                       <h1 className="w-full break-words text-left text-[clamp(2rem,4vw,4rem)] font-bold leading-[1.05] tracking-tight text-white">

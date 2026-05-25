@@ -22,6 +22,7 @@ export type HomeProduct = {
   disponivel?: boolean;
   lojaId?: number;
   lojaNome?: string;
+  lojaAvatarUrl?: string;
   slugLoja?: string;
   totalAvaliacoes?: number;
 };
