@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { PageLayout } from "../../Components/PageLayout";
@@ -52,6 +52,29 @@ type EnderecoExibicao = EnderecoApiResponse & {
 };
 
 type EtapaCheckout = "enderecos" | "entrega" | "pagamento";
+
+type GrupoCarrinhoLoja = {
+  lojaId: number;
+  lojaNome: string;
+  itens: Array<{
+    produtoId: number;
+    nome: string;
+    quantidade: number;
+    subtotal: number;
+  }>;
+  subtotal: number;
+};
+
+type ResumoCheckoutLoja = {
+  lojaId: number;
+  lojaNome: string;
+  quantidadeItens: number;
+  subtotal: number;
+  frete: number;
+  total: number;
+  descricaoEntrega: string;
+  erroEntrega: string;
+};
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -274,6 +297,14 @@ function formatarPrazoEntrega(prazoEntregaDias: number) {
   return `Receba em ate ${prazoEntregaDias} dias uteis`;
 }
 
+function formatarDescricaoEntregaLoja(opcaoEntrega: LojaEntregaOpcao | null) {
+  if (!opcaoEntrega) {
+    return "Selecione uma opcao de entrega";
+  }
+
+  return `${opcaoEntrega.nome} - ${formatarPrazoEntrega(opcaoEntrega.prazoEntregaDias)}`;
+}
+
 function criarImagemResumoPlaceholder(label: string) {
   const titulo = label.trim().slice(0, 20) || "OmniMarket";
   const svg = `
@@ -296,10 +327,54 @@ function criarImagemResumoPlaceholder(label: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function agruparCarrinhoPorLoja(
+  carrinhoItens: Array<{
+    produtoId: number;
+    nome: string;
+    quantidade: number;
+    subtotal: number;
+    lojaId?: number;
+    lojaNome?: string;
+  }>,
+) {
+  const grupos = new Map<number, GrupoCarrinhoLoja>();
+
+  for (const item of carrinhoItens) {
+    const lojaId = item.lojaId ?? 0;
+
+    if (!grupos.has(lojaId)) {
+      grupos.set(lojaId, {
+        lojaId,
+        lojaNome: item.lojaNome?.trim() || `Loja ${lojaId || "indefinida"}`,
+        itens: [],
+        subtotal: 0,
+      });
+    }
+
+    const grupo = grupos.get(lojaId);
+
+    if (!grupo) {
+      continue;
+    }
+
+    grupo.itens.push({
+      produtoId: item.produtoId,
+      nome: item.nome,
+      quantidade: item.quantidade,
+      subtotal: item.subtotal,
+    });
+    grupo.subtotal += item.subtotal;
+  }
+
+  return Array.from(grupos.values());
+}
+
 export function PagamentPage() {
   const [metodo, setMetodo] = useState("pix");
   const [etapaAberta, setEtapaAberta] = useState<EtapaCheckout | null>("enderecos");
-  const [freteSelecionadoId, setFreteSelecionadoId] = useState<number | null>(null);
+  const [fretesSelecionadosPorLoja, setFretesSelecionadosPorLoja] = useState<
+    Record<number, number | null>
+  >({});
   const [enderecoForm, setEnderecoForm] = useState<EnderecoFormState>(
     criarEnderecoFormInicial(),
   );
@@ -310,13 +385,15 @@ export function PagamentPage() {
   const [tiposLogradouro, setTiposLogradouro] = useState<TipoLogradouroOption[]>(
     TIPOS_LOGRADOURO_FALLBACK,
   );
-  const [opcoesEntrega, setOpcoesEntrega] = useState<LojaEntregaOpcao[]>([]);
+  const [opcoesEntregaPorLoja, setOpcoesEntregaPorLoja] = useState<
+    Record<number, LojaEntregaOpcao[]>
+  >({});
   const [isLoadingEntregas, setIsLoadingEntregas] = useState(false);
-  const [erroEntrega, setErroEntrega] = useState("");
+  const [errosEntregaPorLoja, setErrosEntregaPorLoja] = useState<Record<number, string>>({});
   const [isRemovingAddress, setIsRemovingAddress] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [erro, setErro] = useState("");
-  const { carrinhoItens, valorTotal, clearCart, estaAutenticado } = useCart();
+  const { carrinhoItens, valorTotal, clearCart, carregarCarrinho, estaAutenticado } = useCart();
   const navigate = useNavigate();
 
   const subtotal = valorTotal;
@@ -327,15 +404,24 @@ export function PagamentPage() {
     obterEnderecoPrincipal(enderecosExibidos);
   const tipoLogradouroPadrao =
     tiposLogradouro[0]?.codigo ?? ENDERECO_FORM_PADRAO.tipoLogradouro;
-  const lojasCarrinho = Array.from(
-    new Set(
-      carrinhoItens
-        .map((item) => item.lojaId)
-        .filter((lojaId): lojaId is number => typeof lojaId === "number" && lojaId > 0),
-    ),
+  const gruposCarrinho = useMemo(() => agruparCarrinhoPorLoja(carrinhoItens), [carrinhoItens]);
+  const gruposCarrinhoValidos = useMemo(
+    () => gruposCarrinho.filter((grupo) => grupo.lojaId > 0),
+    [gruposCarrinho],
   );
-  const carrinhoTemMultiplasLojas = lojasCarrinho.length > 1;
-  const lojaCheckoutId = lojasCarrinho[0] ?? null;
+  const carrinhoTemLojasInvalidas = gruposCarrinhoValidos.length !== gruposCarrinho.length;
+  const gruposCarrinhoValidosKey = useMemo(
+    () =>
+      gruposCarrinhoValidos
+        .map(
+          (grupo) =>
+            `${grupo.lojaId}:${grupo.itens
+              .map((item) => `${item.produtoId}-${item.quantidade}`)
+              .join(",")}`,
+        )
+        .join("|"),
+    [gruposCarrinhoValidos],
+  );
   const filtroEntrega = criarFiltroEntrega(
     enderecoSelecionado,
     mostrarNovoEnderecoForm,
@@ -344,9 +430,49 @@ export function PagamentPage() {
   const filtroEntregaCep = filtroEntrega.cep ?? "";
   const filtroEntregaCidade = filtroEntrega.cidade ?? "";
   const filtroEntregaUf = filtroEntrega.uf ?? "";
-  const opcaoEntregaSelecionada =
-    opcoesEntrega.find((opcao) => opcao.id === freteSelecionadoId) ?? null;
-  const valorFreteSelecionado = opcaoEntregaSelecionada?.valorFrete ?? 0;
+  const valorFreteSelecionado = gruposCarrinhoValidos.reduce((accumulator, grupo) => {
+    const opcoes = opcoesEntregaPorLoja[grupo.lojaId] ?? [];
+    const opcaoSelecionada =
+      opcoes.find((opcao) => opcao.id === fretesSelecionadosPorLoja[grupo.lojaId]) ?? null;
+
+    return accumulator + (opcaoSelecionada?.valorFrete ?? 0);
+  }, 0);
+  const checkoutTemEntregasValidas =
+    gruposCarrinhoValidos.length > 0 &&
+    !carrinhoTemLojasInvalidas &&
+    gruposCarrinhoValidos.every((grupo) => {
+      const opcoes = opcoesEntregaPorLoja[grupo.lojaId] ?? [];
+      const erroEntrega = errosEntregaPorLoja[grupo.lojaId];
+      const opcaoSelecionada =
+        opcoes.find((opcao) => opcao.id === fretesSelecionadosPorLoja[grupo.lojaId]) ?? null;
+
+      return Boolean(!erroEntrega && opcaoSelecionada?.tipoEntregaId);
+    });
+  const resumoCheckoutPorLoja = useMemo<ResumoCheckoutLoja[]>(
+    () =>
+      gruposCarrinhoValidos.map((grupo) => {
+        const opcoes = opcoesEntregaPorLoja[grupo.lojaId] ?? [];
+        const opcaoSelecionada =
+          opcoes.find((opcao) => opcao.id === fretesSelecionadosPorLoja[grupo.lojaId]) ?? null;
+        const erroEntrega = errosEntregaPorLoja[grupo.lojaId] ?? "";
+        const frete = opcaoSelecionada?.valorFrete ?? 0;
+
+        return {
+          lojaId: grupo.lojaId,
+          lojaNome: grupo.lojaNome,
+          quantidadeItens: grupo.itens.reduce(
+            (accumulator, item) => accumulator + item.quantidade,
+            0,
+          ),
+          subtotal: grupo.subtotal,
+          frete,
+          total: grupo.subtotal + frete,
+          descricaoEntrega: formatarDescricaoEntregaLoja(opcaoSelecionada),
+          erroEntrega,
+        };
+      }),
+    [errosEntregaPorLoja, fretesSelecionadosPorLoja, gruposCarrinhoValidos, opcoesEntregaPorLoja],
+  );
   const total = subtotal + valorFreteSelecionado;
 
   function alternarEtapa(etapa: EtapaCheckout) {
@@ -427,31 +553,21 @@ export function PagamentPage() {
     let isMounted = true;
 
     if (carrinhoItens.length === 0) {
-      setOpcoesEntrega([]);
-      setFreteSelecionadoId(null);
-      setErroEntrega("");
+      setOpcoesEntregaPorLoja({});
+      setFretesSelecionadosPorLoja({});
+      setErrosEntregaPorLoja({});
       setIsLoadingEntregas(false);
       return () => {
         isMounted = false;
       };
     }
 
-    if (carrinhoTemMultiplasLojas) {
-      setOpcoesEntrega([]);
-      setFreteSelecionadoId(null);
-      setErroEntrega(
-        "O checkout atual calcula frete para uma loja por vez. Deixe itens de uma unica loja no carrinho para selecionar a entrega.",
-      );
-      setIsLoadingEntregas(false);
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    if (!lojaCheckoutId) {
-      setOpcoesEntrega([]);
-      setFreteSelecionadoId(null);
-      setErroEntrega("Nao foi possivel identificar a loja dos itens do carrinho.");
+    if (carrinhoTemLojasInvalidas) {
+      setOpcoesEntregaPorLoja({});
+      setFretesSelecionadosPorLoja({});
+      setErrosEntregaPorLoja({
+        0: "Nao foi possivel identificar a loja de um ou mais itens do carrinho.",
+      });
       setIsLoadingEntregas(false);
       return () => {
         isMounted = false;
@@ -461,46 +577,86 @@ export function PagamentPage() {
     async function carregarEntregas() {
       try {
         setIsLoadingEntregas(true);
-        setErroEntrega("");
+        setErrosEntregaPorLoja({});
 
-        const response = await listarEntregasPublicasLoja(lojaCheckoutId, {
-          cep: filtroEntregaCep || undefined,
-          cidade: filtroEntregaCidade || undefined,
-          uf: filtroEntregaUf || undefined,
-        });
+        const respostas = await Promise.all(
+          gruposCarrinhoValidos.map(async (grupo) => {
+            try {
+              const opcoes = await listarEntregasPublicasLoja(grupo.lojaId, {
+                cep: filtroEntregaCep || undefined,
+                cidade: filtroEntregaCidade || undefined,
+                uf: filtroEntregaUf || undefined,
+              });
+
+              return {
+                lojaId: grupo.lojaId,
+                opcoes,
+                erro: "",
+              };
+            } catch (error) {
+              return {
+                lojaId: grupo.lojaId,
+                opcoes: [],
+                erro:
+                  error instanceof Error
+                    ? error.message
+                    : "Nao foi possivel carregar as opcoes de entrega da loja.",
+              };
+            }
+          }),
+        );
 
         if (!isMounted) {
           return;
         }
 
-        setOpcoesEntrega(response);
-        setFreteSelecionadoId((currentId) => {
-          if (currentId && response.some((opcao) => opcao.id === currentId)) {
-            return currentId;
+        const proximasOpcoes: Record<number, LojaEntregaOpcao[]> = {};
+        const proximosErros: Record<number, string> = {};
+
+        for (const resposta of respostas) {
+          proximasOpcoes[resposta.lojaId] = resposta.opcoes;
+
+          if (resposta.erro) {
+            proximosErros[resposta.lojaId] = resposta.erro;
+            continue;
           }
 
-          return response.find((opcao) => opcao.tipoEntregaId)?.id ?? response[0]?.id ?? null;
+          if (resposta.opcoes.length === 0) {
+            proximosErros[resposta.lojaId] =
+              "Esta loja ainda nao configurou opcoes de entrega para o checkout.";
+            continue;
+          }
+
+          if (!resposta.opcoes.some((opcao) => opcao.tipoEntregaId)) {
+            proximosErros[resposta.lojaId] =
+              "As opcoes de entrega desta loja ainda nao possuem um tipo compativel com o checkout atual.";
+          }
+        }
+
+        setOpcoesEntregaPorLoja(proximasOpcoes);
+        setErrosEntregaPorLoja(proximosErros);
+        setFretesSelecionadosPorLoja((currentState) => {
+          const proximoState: Record<number, number | null> = {};
+
+          for (const resposta of respostas) {
+            const selecionadoAtual = currentState[resposta.lojaId];
+
+            if (
+              selecionadoAtual &&
+              resposta.opcoes.some((opcao) => opcao.id === selecionadoAtual)
+            ) {
+              proximoState[resposta.lojaId] = selecionadoAtual;
+              continue;
+            }
+
+            proximoState[resposta.lojaId] =
+              resposta.opcoes.find((opcao) => opcao.tipoEntregaId)?.id ??
+              resposta.opcoes[0]?.id ??
+              null;
+          }
+
+          return proximoState;
         });
-
-        if (response.length === 0) {
-          setErroEntrega("Esta loja ainda nao configurou opcoes de entrega para o checkout.");
-        } else if (!response.some((opcao) => opcao.tipoEntregaId)) {
-          setErroEntrega(
-            "As opcoes de entrega desta loja ainda nao possuem um tipo compativel com o checkout atual.",
-          );
-        }
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setOpcoesEntrega([]);
-        setFreteSelecionadoId(null);
-        setErroEntrega(
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel carregar as opcoes de entrega da loja.",
-        );
       } finally {
         if (isMounted) {
           setIsLoadingEntregas(false);
@@ -515,8 +671,9 @@ export function PagamentPage() {
     };
   }, [
     carrinhoItens.length,
-    carrinhoTemMultiplasLojas,
-    lojaCheckoutId,
+    gruposCarrinhoValidos,
+    gruposCarrinhoValidosKey,
+    carrinhoTemLojasInvalidas,
     filtroEntregaCep,
     filtroEntregaCidade,
     filtroEntregaUf,
@@ -557,6 +714,14 @@ export function PagamentPage() {
 
   function handleSelecionarEndereco(enderecoId: number) {
     setEnderecoSelecionadoId(enderecoId);
+    setErro("");
+  }
+
+  function handleSelecionarFreteLoja(lojaId: number, entregaId: number) {
+    setFretesSelecionadosPorLoja((currentState) => ({
+      ...currentState,
+      [lojaId]: entregaId,
+    }));
     setErro("");
   }
 
@@ -707,15 +872,13 @@ export function PagamentPage() {
       return;
     }
 
-    if (carrinhoTemMultiplasLojas) {
-      setErro(
-        "O checkout atual aceita o calculo de frete para uma loja por vez. Ajuste o carrinho antes de continuar.",
-      );
+    if (carrinhoTemLojasInvalidas) {
+      setErro("Nao foi possivel identificar a loja de um ou mais itens do carrinho.");
       return;
     }
 
-    if (!opcaoEntregaSelecionada || !opcaoEntregaSelecionada.tipoEntregaId) {
-      setErro("Selecione uma opcao de entrega valida antes de finalizar a compra.");
+    if (!checkoutTemEntregasValidas) {
+      setErro("Selecione uma opcao de entrega valida para cada loja antes de finalizar a compra.");
       return;
     }
 
@@ -729,6 +892,19 @@ export function PagamentPage() {
     setIsSubmitting(true);
     setErro("");
 
+    const pedidosProcessados: Array<{
+      pedidoId: number;
+      lojaNome: string;
+      total: number;
+      statusPagamento: string;
+      itens: Array<{
+        produtoId: number;
+        nome: string;
+        quantidade: number;
+        subtotal: number;
+      }>;
+    }> = [];
+
     try {
       const enderecoId = await resolverEnderecoId();
 
@@ -736,38 +912,77 @@ export function PagamentPage() {
         throw new Error("Cadastre ou selecione um endereco de entrega antes de continuar.");
       }
 
-      const pedido = await criarPedido({
-        enderecoId,
-        tipoEntregaId: opcaoEntregaSelecionada.tipoEntregaId,
-        observacao: "",
-        itens: [],
-      });
+      for (const grupo of gruposCarrinhoValidos) {
+        const opcoesLoja = opcoesEntregaPorLoja[grupo.lojaId] ?? [];
+        const opcaoEntregaSelecionada =
+          opcoesLoja.find((opcao) => opcao.id === fretesSelecionadosPorLoja[grupo.lojaId]) ?? null;
 
-      const valorFreteFinal =
-        Number(pedido.valorFrete) > 0 ? Number(pedido.valorFrete) : valorFreteSelecionado;
-      const totalFinal = Number(pedido.valorProdutos) + valorFreteFinal;
+        if (!opcaoEntregaSelecionada?.tipoEntregaId) {
+          throw new Error(
+            `Selecione uma opcao de entrega valida para a loja ${grupo.lojaNome} antes de finalizar a compra.`,
+          );
+        }
 
-      const pagamento = await iniciarPagamento({
-        pedidoId: pedido.pedidoId,
-        formaPagamentoId,
-        observacao: `Checkout web via ${metodo}`,
-      });
+        const pedido = await criarPedido({
+          enderecoId,
+          tipoEntregaId: opcaoEntregaSelecionada.tipoEntregaId,
+          observacao: "",
+          itens: grupo.itens.map((item) => ({
+            produtoId: item.produtoId,
+            quantidade: item.quantidade,
+          })),
+        });
 
-      const confirmacao = await confirmarPagamentoFake(pagamento.planoPagamentoId);
+        const valorFreteFinal =
+          Number(pedido.valorFrete) > 0
+            ? Number(pedido.valorFrete)
+            : opcaoEntregaSelecionada.valorFrete;
+        const totalFinal = Number(pedido.valorProdutos) + valorFreteFinal;
+
+        const pagamento = await iniciarPagamento({
+          pedidoId: pedido.pedidoId,
+          formaPagamentoId,
+          observacao: `Checkout web via ${metodo}`,
+        });
+
+        const confirmacao = await confirmarPagamentoFake(pagamento.planoPagamentoId);
+
+        pedidosProcessados.push({
+          pedidoId: pedido.pedidoId,
+          lojaNome: grupo.lojaNome,
+          total: totalFinal,
+          statusPagamento: confirmacao.statusPagamento,
+          itens: grupo.itens,
+        });
+      }
 
       await clearCart();
+
+      const totalFinalCheckout = pedidosProcessados.reduce(
+        (accumulator, pedidoAtual) => accumulator + pedidoAtual.total,
+        0,
+      );
+      const statusPagamentoFinal =
+        pedidosProcessados.every(
+          (pedidoAtual) => pedidoAtual.statusPagamento === pedidosProcessados[0]?.statusPagamento,
+        )
+          ? pedidosProcessados[0]?.statusPagamento ?? "Confirmado"
+          : "Confirmado parcialmente";
+      const todosItens = pedidosProcessados.flatMap((pedidoAtual) => pedidoAtual.itens);
 
       navigate({
         to: "/paginaSucesso",
         state: (currentState) => ({
           ...currentState,
           checkoutResult: {
-            pedidoId: pedido.pedidoId,
-            total: totalFinal,
+            pedidoId: pedidosProcessados[0]?.pedidoId ?? 0,
+            pedidoIds: pedidosProcessados.map((pedidoAtual) => pedidoAtual.pedidoId),
+            pedidos: pedidosProcessados,
+            total: totalFinalCheckout,
             metodoPagamento:
               METODOS_PAGAMENTO.find((item) => item.id === metodo)?.titulo ?? metodo,
-            statusPagamento: confirmacao.statusPagamento,
-            itens: carrinhoItens.map((item) => ({
+            statusPagamento: statusPagamentoFinal,
+            itens: todosItens.map((item) => ({
               produtoId: item.produtoId,
               nome: item.nome,
               quantidade: item.quantidade,
@@ -777,9 +992,17 @@ export function PagamentPage() {
         }),
       });
     } catch (error) {
+      if (pedidosProcessados.length > 0) {
+        await carregarCarrinho().catch(() => undefined);
+      }
+
       const message =
         error instanceof Error ? error.message : "Nao foi possivel finalizar a compra.";
-      setErro(message);
+      setErro(
+        pedidosProcessados.length > 0
+          ? `Parte da compra ja foi processada para outras lojas. ${message}`
+          : message,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -801,33 +1024,65 @@ export function PagamentPage() {
                 </p>
               </div>
 
-              <div className="space-y-4">
-                {carrinhoItens.map((item) => (
-                  <article
-                    key={item.produtoId}
-                    className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-4"
+              <div className="space-y-5">
+                {gruposCarrinho.map((grupo) => (
+                  <div
+                    key={`${grupo.lojaId}-${grupo.lojaNome}`}
+                    className="rounded-2xl border border-white/10 bg-black/15 p-4"
                   >
-                    <img
-                      src={item.imagem ?? criarImagemResumoPlaceholder(item.nome)}
-                      alt={item.nome}
-                      onError={(event) => {
-                        event.currentTarget.onerror = null;
-                        event.currentTarget.src = criarImagemResumoPlaceholder(item.nome);
-                      }}
-                      className="h-20 w-20 shrink-0 rounded-2xl border border-white/10 bg-black/30 object-cover"
-                    />
+                    <div className="mb-4 flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{grupo.lojaNome}</h3>
+                        <p className="mt-1 text-sm text-zinc-400">
+                          {grupo.itens.reduce(
+                            (accumulator, item) => accumulator + item.quantidade,
+                            0,
+                          )}{" "}
+                          item(ns) nesta loja
+                        </p>
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-lg font-semibold text-white">{item.nome}</p>
-                      <p className="mt-1 text-sm text-zinc-400">
-                        Valor unitario: {formatarMoeda(item.preco)}
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-400">Quantidade: {item.quantidade}</p>
-                      <p className="mt-2 text-sm font-semibold text-yellow-400">
-                        Valor total: {formatarMoeda(item.subtotal)}
-                      </p>
+                      <span className="text-sm font-semibold text-yellow-400">
+                        Subtotal da loja: {formatarMoeda(grupo.subtotal)}
+                      </span>
                     </div>
-                  </article>
+
+                    <div className="space-y-4">
+                      {carrinhoItens
+                        .filter((item) => (item.lojaId ?? 0) === grupo.lojaId)
+                        .map((item) => (
+                          <article
+                            key={`${grupo.lojaId}-${item.produtoId}`}
+                            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-4"
+                          >
+                            <img
+                              src={item.imagem ?? criarImagemResumoPlaceholder(item.nome)}
+                              alt={item.nome}
+                              onError={(event) => {
+                                event.currentTarget.onerror = null;
+                                event.currentTarget.src = criarImagemResumoPlaceholder(item.nome);
+                              }}
+                              className="h-20 w-20 shrink-0 rounded-2xl border border-white/10 bg-black/30 object-cover"
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-lg font-semibold text-white">
+                                {item.nome}
+                              </p>
+                              <p className="mt-1 text-sm text-zinc-400">
+                                Valor unitario: {formatarMoeda(item.preco)}
+                              </p>
+                              <p className="mt-1 text-sm text-zinc-400">
+                                Quantidade: {item.quantidade}
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-yellow-400">
+                                Valor total: {formatarMoeda(item.subtotal)}
+                              </p>
+                            </div>
+                          </article>
+                        ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -1081,63 +1336,98 @@ export function PagamentPage() {
 
               {etapaAberta === "entrega" ? (
                 <fieldset className="space-y-4">
-                  <div className="grid gap-3">
                   {isLoadingEntregas ? (
                     <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-5 text-sm text-zinc-300">
-                      Carregando opcoes de entrega da loja...
+                      Carregando opcoes de entrega de cada loja...
                     </div>
                   ) : null}
 
-                  {!isLoadingEntregas && erroEntrega ? (
+                  {carrinhoTemLojasInvalidas ? (
                     <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
-                      {erroEntrega}
+                      Nao foi possivel identificar a loja de um ou mais itens do carrinho.
                     </div>
                   ) : null}
 
-                  {!isLoadingEntregas && !erroEntrega
-                    ? opcoesEntrega.map((opcao) => {
-                        const selecionado = freteSelecionadoId === opcao.id;
+                  {!isLoadingEntregas && gruposCarrinhoValidos.length > 0 ? (
+                    <div className="space-y-4">
+                      {gruposCarrinhoValidos.map((grupo) => {
+                        const opcoesLoja = opcoesEntregaPorLoja[grupo.lojaId] ?? [];
+                        const erroEntregaLoja = errosEntregaPorLoja[grupo.lojaId];
+                        const freteSelecionadoLoja = fretesSelecionadosPorLoja[grupo.lojaId];
 
                         return (
-                          <label
-                            key={opcao.id}
-                            htmlFor={`frete-${opcao.id}`}
-                            className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
-                              selecionado
-                                ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_0_1px_rgba(250,204,21,0.20)]"
-                                : "border-white/10 bg-black/20"
-                            }`}
+                          <div
+                            key={grupo.lojaId}
+                            className="rounded-2xl border border-white/10 bg-black/20 p-4"
                           >
-                            <input
-                              id={`frete-${opcao.id}`}
-                              type="radio"
-                              name="frete"
-                              checked={selecionado}
-                              onChange={() => setFreteSelecionadoId(opcao.id)}
-                              className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
-                            />
-
-                            <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="mb-4 flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
                               <div>
-                                <p className="font-semibold text-white">{opcao.nome}</p>
-                                <p className="text-sm text-zinc-400">
-                                  {opcao.tipoEntrega} • {formatarPrazoEntrega(opcao.prazoEntregaDias)}
+                                <h3 className="text-lg font-semibold text-white">{grupo.lojaNome}</h3>
+                                <p className="mt-1 text-sm text-zinc-400">
+                                  {grupo.itens.length} item(ns) neste pedido - Subtotal {formatarMoeda(grupo.subtotal)}
                                 </p>
-                                {opcao.observacao?.trim() ? (
-                                  <p className="mt-1 text-xs text-zinc-500">
-                                    {opcao.observacao.trim()}
-                                  </p>
-                                ) : null}
                               </div>
-                              <span className="text-sm font-semibold text-yellow-400">
-                                {formatarMoeda(opcao.valorFrete)}
+                              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-400/80">
+                                Entrega por loja
                               </span>
                             </div>
-                          </label>
+
+                            {erroEntregaLoja ? (
+                              <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
+                                {erroEntregaLoja}
+                              </div>
+                            ) : null}
+
+                            {!erroEntregaLoja && opcoesLoja.length > 0 ? (
+                              <div className="grid gap-3">
+                                {opcoesLoja.map((opcao) => {
+                                  const selecionado = freteSelecionadoLoja === opcao.id;
+
+                                  return (
+                                    <label
+                                      key={opcao.id}
+                                      htmlFor={`frete-${grupo.lojaId}-${opcao.id}`}
+                                      className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition duration-200 hover:border-yellow-400/60 hover:bg-black/30 ${
+                                        selecionado
+                                          ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_0_1px_rgba(250,204,21,0.20)]"
+                                          : "border-white/10 bg-black/20"
+                                      }`}
+                                    >
+                                      <input
+                                        id={`frete-${grupo.lojaId}-${opcao.id}`}
+                                        type="radio"
+                                        name={`frete-loja-${grupo.lojaId}`}
+                                        checked={selecionado}
+                                        onChange={() => handleSelecionarFreteLoja(grupo.lojaId, opcao.id)}
+                                        className="mt-1 h-4 w-4 border-white/20 bg-transparent text-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                                      />
+
+                                      <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                          <p className="font-semibold text-white">{opcao.nome}</p>
+                                          <p className="text-sm text-zinc-400">
+                                            {opcao.tipoEntrega} - {formatarPrazoEntrega(opcao.prazoEntregaDias)}
+                                          </p>
+                                          {opcao.observacao?.trim() ? (
+                                            <p className="mt-1 text-xs text-zinc-500">
+                                              {opcao.observacao.trim()}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                        <span className="text-sm font-semibold text-yellow-400">
+                                          {formatarMoeda(opcao.valorFrete)}
+                                        </span>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                          </div>
                         );
-                      })
-                    : null}
-                  </div>
+                      })}
+                    </div>
+                  ) : null}
                 </fieldset>
               ) : null}
             </section>
@@ -1308,13 +1598,63 @@ export function PagamentPage() {
               </div>
 
               <div className="pt-1">
+                {resumoCheckoutPorLoja.length > 0 ? (
+                  <div className="mb-5 space-y-3 border-b border-white/10 pb-4">
+                    <div className="flex items-center justify-between text-sm font-semibold uppercase tracking-[0.18em] text-yellow-400/80">
+                      <span>Resumo por loja</span>
+                      <span>{resumoCheckoutPorLoja.length} loja(s)</span>
+                    </div>
+
+                    {resumoCheckoutPorLoja.map((resumoLoja) => (
+                      <div
+                        key={resumoLoja.lojaId}
+                        className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-white">{resumoLoja.lojaNome}</p>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {resumoLoja.quantidadeItens} item(ns) neste pedido
+                            </p>
+                          </div>
+
+                          <p className="text-sm font-semibold text-emerald-300">
+                            {formatarMoeda(resumoLoja.total)}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 space-y-2 text-sm text-zinc-300">
+                          <div className="flex items-center justify-between gap-3">
+                            <span>Subtotal da loja</span>
+                            <span>{formatarMoeda(resumoLoja.subtotal)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span>Frete da loja</span>
+                            <span>
+                              {isLoadingEntregas
+                                ? "Calculando..."
+                                : formatarMoeda(resumoLoja.frete)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="mt-3 text-xs text-zinc-500">
+                          {resumoLoja.erroEntrega
+                            ? resumoLoja.erroEntrega
+                            : resumoLoja.descricaoEntrega}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm text-zinc-300">
-                    <span>Subtotal</span>
+                    <span>Subtotal dos produtos</span>
                     <span>{formatarMoeda(subtotal)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-zinc-300">
-                    <span>Frete</span>
+                    <span>Frete total</span>
                     <span>
                       {isLoadingEntregas ? "Calculando..." : formatarMoeda(valorFreteSelecionado)}
                     </span>
@@ -1322,7 +1662,7 @@ export function PagamentPage() {
                 </div>
 
                 <div className="mt-4 flex text-[30px] font-bold">
-                  <p className="px-3">Total:</p>
+                  <p className="px-3">Total geral:</p>
                   <p className="text-emerald-300">{formatarMoeda(total)}</p>
                 </div>
               </div>
@@ -1343,7 +1683,7 @@ export function PagamentPage() {
                   isLoadingEntregas ||
                   !estaAutenticado ||
                   carrinhoItens.length === 0 ||
-                  !opcaoEntregaSelecionada
+                  !checkoutTemEntregasValidas
                 }
               >
                 {isSubmitting ? "Processando..." : "Finalizar compra"}
