@@ -278,20 +278,20 @@ export function usePerfilUsuarioData() {
         const lojaId = lojaAtual?.id ?? metricas?.lojaId;
         const produtosDaLoja = lojaId
           ? produtos
-              .filter((produto) => produto.lojaId === lojaId)
+              .filter((produto) => produto.lojaId === lojaId && produto.disponivel !== false)
               .map((produto) => ({
                 id: `produto-${produto.id}`,
                 titulo: produto.nome,
                 subtitulo: produto.categoriaNome,
                 valor: currencyFormatter.format(produto.preco),
                 imagemUrl: produto.imagem,
-                badge: produto.disponivel ? "Publicado" : "Indisponivel",
+                badge: "Publicado",
                 produtoId: produto.id,
                 categoriaId: produto.categoriaId,
                 categoriaNome: produto.categoriaNome,
                 precoNumero: produto.preco,
                 estoque: produto.estoque,
-                disponivel: produto.disponivel,
+                disponivel: true,
                 descricao: produto.descricao,
                 imagens: produto.imagens,
               }))

@@ -1160,19 +1160,28 @@ export function PerfilUsuarioPage() {
       return;
     }
 
-    const mensagemConfirmacao =
-      categoria.totalProdutos === 1
-        ? `Deseja mesmo excluir a categoria "${categoria.nome}"? O produto vinculado sera removido da vitrine, mas continuara salvo no banco.`
-        : `Deseja mesmo excluir a categoria "${categoria.nome}"? Os ${categoria.totalProdutos} produtos vinculados serao removidos da vitrine, mas continuarao salvos no banco.`;
-
-    if (!window.confirm(mensagemConfirmacao)) {
-      return;
-    }
-
     try {
       setCategoriaLojaRemovendoId(categoria.id);
 
-      const resposta = await removerCategoriaDaLoja(categoria.nome, true);
+      const respostaValidacao = await removerCategoriaDaLoja(categoria.nome);
+      let resposta = respostaValidacao;
+
+      if (respostaValidacao.requerConfirmacao) {
+        const totalProdutosRelacionados =
+          respostaValidacao.totalProdutosEncontrados || categoria.totalProdutos;
+        const mensagemConfirmacao =
+          respostaValidacao.mensagem?.trim() ||
+          (totalProdutosRelacionados === 1
+            ? `Deseja mesmo excluir a categoria "${categoria.nome}"? O produto vinculado sera removido da vitrine, mas continuara salvo no banco.`
+            : `Deseja mesmo excluir a categoria "${categoria.nome}"? Os ${totalProdutosRelacionados} produtos vinculados serao removidos da vitrine, mas continuarao salvos no banco.`);
+
+        if (!window.confirm(mensagemConfirmacao)) {
+          return;
+        }
+
+        resposta = await removerCategoriaDaLoja(categoria.nome, true);
+      }
+
       const produtosDaCategoria = produtosDaLoja.filter((item) => item.categoriaId === categoria.id);
 
       produtosDaCategoria.forEach((item) => {

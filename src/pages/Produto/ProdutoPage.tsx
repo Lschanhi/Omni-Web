@@ -34,7 +34,14 @@ export function ProdutoPage() {
         const response = await obterProdutoPorId(produtoId);
 
         if (isMounted) {
+          if (response.disponivel === false) {
+            setProduto(null);
+            setErro("Este produto nao esta mais disponivel na vitrine.");
+            return;
+          }
+
           setProduto(response);
+          setErro("");
         }
       } catch (error) {
         if (!isMounted) {
