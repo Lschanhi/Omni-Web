@@ -2326,7 +2326,40 @@ export function PerfilUsuarioPage() {
                         ) : null}
 
                         {categoriasDaLoja.length > 0 ? (
-                          <div className="flex flex-wrap items-center gap-2">
+                          <>
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={
+                                  categoriaLojaModoExclusao
+                                    ? handleCancelarModoExclusaoCategorias
+                                    : handleAlternarModoExclusaoCategorias
+                                }
+                                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 ${
+                                  categoriaLojaModoExclusao
+                                    ? "border-red-400/40 bg-red-400/10 text-red-200"
+                                    : "border-white/10 bg-black text-neutral-400 hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-200"
+                                }`.trim()}
+                                aria-label={
+                                  categoriaLojaModoExclusao
+                                    ? "Cancelar exclusao de categorias"
+                                    : "Ativar modo de exclusao de categorias"
+                                }
+                                title={
+                                  categoriaLojaModoExclusao
+                                    ? "Cancelar exclusao de categorias"
+                                    : "Ativar modo de exclusao de categorias"
+                                }
+                              >
+                                {categoriaLojaModoExclusao ? (
+                                  <X className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
                               onClick={() => setCategoriaLojaAtiva("todas")}
@@ -2386,42 +2419,8 @@ export function PerfilUsuarioPage() {
                                 </div>
                               );
                             })}
-
-                            <button
-                              type="button"
-                              onClick={
-                                categoriaLojaModoExclusao
-                                  ? handleCancelarModoExclusaoCategorias
-                                  : handleAlternarModoExclusaoCategorias
-                              }
-                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 ${
-                                categoriaLojaModoExclusao
-                                  ? "border-red-400/40 bg-red-400/10 text-red-200"
-                                  : "border-white/10 bg-black text-neutral-400 hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-200"
-                              }`.trim()}
-                              aria-label={
-                                categoriaLojaModoExclusao
-                                  ? "Cancelar exclusao de categorias"
-                                  : "Ativar modo de exclusao de categorias"
-                              }
-                              title={
-                                categoriaLojaModoExclusao
-                                  ? "Cancelar exclusao de categorias"
-                                  : "Ativar modo de exclusao de categorias"
-                              }
-                            >
-                              {categoriaLojaModoExclusao ? (
-                                <X className="h-3.5 w-3.5" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                              <span>
-                                {categoriaLojaModoExclusao
-                                  ? "Cancelar exclusao"
-                                  : "Excluir categoria"}
-                              </span>
-                            </button>
-                          </div>
+                            </div>
+                          </>
                         ) : (
                           <p className="text-sm text-neutral-500">
                             As categorias vao aparecer aqui assim que houver produtos publicados.
