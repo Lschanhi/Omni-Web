@@ -212,6 +212,17 @@ export function usePerfilUsuarioData() {
   const [reloadSeed, setReloadSeed] = useState(0);
 
   useEffect(() => {
+    setStats((currentStats) =>
+      currentStats.totalProdutos === tabItems.produtos.length
+        ? currentStats
+        : {
+            ...currentStats,
+            totalProdutos: tabItems.produtos.length,
+          },
+    );
+  }, [tabItems.produtos.length]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
     }
@@ -346,6 +357,40 @@ export function usePerfilUsuarioData() {
     };
   }, [reloadSeed]);
 
+  function sincronizarProdutoLojaLocal(produto: PerfilGridItem) {
+    setTabItems((currentItems) => {
+      const indiceProdutoAtual = currentItems.produtos.findIndex(
+        (item) => item.produtoId === produto.produtoId,
+      );
+
+      if (produto.disponivel === false) {
+        if (indiceProdutoAtual < 0) {
+          return currentItems;
+        }
+
+        return {
+          ...currentItems,
+          produtos: currentItems.produtos.filter((item) => item.produtoId !== produto.produtoId),
+        };
+      }
+
+      if (indiceProdutoAtual < 0) {
+        return {
+          ...currentItems,
+          produtos: [produto, ...currentItems.produtos],
+        };
+      }
+
+      const proximosProdutos = [...currentItems.produtos];
+      proximosProdutos[indiceProdutoAtual] = produto;
+
+      return {
+        ...currentItems,
+        produtos: proximosProdutos,
+      };
+    });
+  }
+
   return {
     usuario,
     loja,
@@ -355,6 +400,7 @@ export function usePerfilUsuarioData() {
     tabItems,
     ...pageState,
     setAbaAtiva,
+    sincronizarProdutoLojaLocal,
     recarregarDados: () => setReloadSeed((currentSeed) => currentSeed + 1),
   };
 }

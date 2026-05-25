@@ -28,7 +28,6 @@ import {
   atualizarProduto,
   criarProduto,
   enviarMidiasProduto,
-  listarProdutos,
   listarMidiasProduto,
   removerCategoriaDaLoja,
   removerProduto,
@@ -95,6 +94,7 @@ import {
   criarCategoriasDaLoja,
   criarEntregaLojaForm,
   criarMensagemSucessoExclusaoCategoria,
+  criarProdutoGridItem,
   criarProdutoForm,
   criarStatsComprador,
   criarStatsLoja,
@@ -133,6 +133,7 @@ export function PerfilUsuarioPage() {
     usuarioError,
     conteudoError,
     setAbaAtiva,
+    sincronizarProdutoLojaLocal,
     recarregarDados,
   } = usePerfilUsuarioData();
   const {
@@ -1129,6 +1130,8 @@ export function PerfilUsuarioPage() {
       const produtoIdPersistido = produtoSalvo?.id ?? produtoForm.id;
 
       if (produtoIdPersistido) {
+        let imagensSincronizadas = produtoSalvo?.imagens ?? [];
+        let imagemPrincipalSincronizada = produtoSalvo?.imagem ?? "";
         let imagemPersistidaPublicamente = false;
 
         if (produtoImagemArquivo) {
@@ -1145,29 +1148,37 @@ export function PerfilUsuarioPage() {
           }
 
           saveStoredProdutoImage(produtoIdPersistido, midiasConfirmadas[0]);
+          imagensSincronizadas = midiasConfirmadas;
+          imagemPrincipalSincronizada = midiasConfirmadas[0] ?? "";
           imagemPersistidaPublicamente = true;
         }
 
         if (imagemPersistidaPublicamente) {
           // Mantem a URL publica confirmada pela API.
         } else if (produtoForm.imagemUrl.trim()) {
-          saveStoredProdutoImage(produtoIdPersistido, produtoForm.imagemUrl.trim());
+          imagemPrincipalSincronizada = produtoForm.imagemUrl.trim();
+          imagensSincronizadas =
+            imagensSincronizadas.length > 0 ? imagensSincronizadas : [imagemPrincipalSincronizada];
+          saveStoredProdutoImage(produtoIdPersistido, imagemPrincipalSincronizada);
         } else {
+          imagensSincronizadas = [];
+          imagemPrincipalSincronizada = "";
           removeStoredProdutoImage(produtoIdPersistido);
         }
 
-        if (!payload.disponivel) {
-          const produtosPublicados = await listarProdutos().catch(() => []);
-          const produtoAindaPublicado = produtosPublicados.some(
-            (produto) => produto.id === produtoIdPersistido && produto.disponivel !== false,
-          );
-
-          if (produtoAindaPublicado) {
-            throw new Error(
-              "O produto foi salvo, mas ainda aparece como disponivel na vitrine. Verifique se o back-end esta persistindo corretamente o campo de disponibilidade.",
-            );
-          }
-        }
+        sincronizarProdutoLojaLocal(
+          criarProdutoGridItem({
+            id: produtoIdPersistido,
+            nome: produtoSalvo?.nome ?? payload.nome,
+            categoria: produtoSalvo?.categoriaNome ?? payload.categoria,
+            preco: produtoSalvo?.preco ?? payload.preco,
+            estoque: produtoSalvo?.estoque ?? payload.estoque,
+            disponivel: produtoSalvo?.disponivel ?? (payload.disponivel && payload.estoque > 0),
+            descricao: produtoSalvo?.descricao ?? payload.descricao,
+            imagemUrl: produtoSalvo?.imagem ?? imagemPrincipalSincronizada,
+            imagens: produtoSalvo?.imagens ?? imagensSincronizadas,
+          }),
+        );
       }
 
       fecharModal();
