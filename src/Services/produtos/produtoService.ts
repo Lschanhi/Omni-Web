@@ -41,6 +41,14 @@ export type ProdutoMutacaoPayload = {
   imagens?: string[];
 };
 
+export type CategoriaExclusaoResposta = {
+  categoria: string;
+  totalProdutosEncontrados: number;
+  totalProdutosDesativados: number;
+  requerConfirmacao: boolean;
+  mensagem: string;
+};
+
 type ProdutoMidiaApiItem =
   | string
   | {
@@ -329,4 +337,26 @@ export async function atualizarProduto(id: number, payload: ProdutoMutacaoPayloa
 
   const produto = extrairProdutoDaResposta(response);
   return produto ? mapearProduto(produto) : null;
+}
+
+export async function removerProduto(id: number) {
+  await apiRequest<void>(`/api/produto/${id}`, {
+    method: "DELETE",
+    authenticated: true,
+  });
+}
+
+export async function removerCategoriaDaLoja(
+  nomeCategoria: string,
+  confirmarExclusaoProdutos = false,
+) {
+  const query = new URLSearchParams({
+    nomeCategoria,
+    confirmarExclusaoProdutos: String(confirmarExclusaoProdutos),
+  });
+
+  return apiRequest<CategoriaExclusaoResposta>(`/api/produto/categoria?${query.toString()}`, {
+    method: "DELETE",
+    authenticated: true,
+  });
 }
