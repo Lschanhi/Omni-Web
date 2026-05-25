@@ -14,7 +14,7 @@ type ModalLojaPerfilProps = {
   onChangeLojaInput: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onToggleLojaAtiva: () => void;
+  onToggleLojaAtiva: (event: ChangeEvent<HTMLInputElement>) => void;
   temLoja: boolean;
   titulo: string;
 };
