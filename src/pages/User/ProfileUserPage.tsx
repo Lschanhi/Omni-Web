@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, type ChangeEvent, type FormEvent } from "react";
 import {
   ImagePlus,
   LockIcon,
@@ -12,20 +12,19 @@ import {
   Trash2,
   Truck,
   User,
-  X,
 } from "lucide-react";
 import { Botao } from "../../Components/Botao";
 import { Spotlight } from "../../Components/home/SpotLight";
 import { Input } from "../../Components/Input";
 import { PageLayout } from "../../Components/PageLayout";
-import { ProfileModal } from "../../Components/perfil/ProfileModal";
 import { ProductGrid } from "../../Components/perfil/ProductGrid";
 import { ProfileFeedback } from "../../Components/perfil/ProfileFeedback";
+import { ProfileModal } from "../../Components/perfil/ProfileModal";
 import { ProfileSection } from "../../Components/perfil/ProfileSection";
 import { ProfileSkeleton } from "../../Components/perfil/ProfileSkeleton";
 import { UserCard } from "../../Components/perfil/UserCard";
 import { UserStats } from "../../Components/perfil/UserStats";
-import { UserTabs, type UserTabOption } from "../../Components/perfil/UserTabs";
+import { UserTabs } from "../../Components/perfil/UserTabs";
 import { usePerfilUsuarioData } from "../../hooks/usePerfilUsuarioData";
 import {
   atualizarMinhaEntregaLoja,
@@ -57,7 +56,6 @@ import {
   listarTiposLogradouro,
   removerEndereco,
   TIPOS_LOGRADOURO_FALLBACK,
-  type TipoLogradouroOption,
 } from "../../Services/user/enderecoService";
 import {
   criarMinhaLoja,
@@ -65,7 +63,6 @@ import {
   type TipoDocumentoFiscalLoja,
 } from "../../Services/user/lojaService";
 import {
-  getStoredLojaAvatar,
   removeStoredLojaAvatar,
   saveStoredLojaAvatar,
 } from "../../Services/user/lojaAvatarStorage";
@@ -82,833 +79,51 @@ import {
 } from "../../Services/user/usuarioService";
 import type {
   PerfilGridItem,
-  PerfilIdentityCardData,
-  PerfilStatCardItem,
   PerfilTabContent,
   PerfilTabId,
   PerfilVisaoId,
-  UsuarioEnderecoPerfil,
-  UsuarioTelefonePerfil,
 } from "../../types/perfil";
-
-type ModalAberto = "avatar" | "perfil" | "loja" | "produto" | "entregas" | null;
-type AvatarDestino = "usuario" | "loja";
-
-type PerfilFormState = {
-  nome: string;
-  sobrenome: string;
-  email: string;
-  password: string;
-};
-
-type PerfilTelefoneFormState = {
-  id?: number;
-  numero: string;
-  isPrincipal: boolean;
-};
-
-type PerfilEnderecoFormState = {
-  id?: number;
-  tipoLogradouro: string;
-  nomeEndereco: string;
-  numero: string;
-  complemento: string;
-  cep: string;
-  cidade: string;
-  uf: string;
-  isPrincipal: boolean;
-};
-
-type LojaFormState = {
-  nomeFantasia: string;
-  tipoDocumentoFiscal: `${TipoDocumentoFiscalLoja}`;
-  documentoFiscal: string;
-  descricao: string;
-  emailContato: string;
-  ativa: boolean;
-};
-
-type ProdutoFormState = {
-  id?: number;
-  nome: string;
-  categoria: string;
-  preco: string;
-  estoque: string;
-  descricao: string;
-  imagemUrl: string;
-  disponivel: boolean;
-};
-
-type LojaEntregaFormState = {
-  id?: number;
-  tipoEntregaId: string;
-  nome: string;
-  valorFrete: string;
-  prazoEntregaDias: string;
-  observacao: string;
-  ativa: boolean;
-};
-
-type CategoriaLojaOption = {
-  id: string;
-  nome: string;
-  totalProdutos: number;
-};
-
-type LojaFeedbackState = {
-  tone: "success" | "error";
-  message: string;
-};
-
-const PERFIL_FORM_INICIAL: PerfilFormState = {
-  nome: "",
-  sobrenome: "",
-  email: "",
-  password: "",
-};
-
-const TELEFONE_FORM_INICIAL: PerfilTelefoneFormState = {
-  numero: "",
-  isPrincipal: false,
-};
-
-const ENDERECO_FORM_INICIAL: PerfilEnderecoFormState = {
-  tipoLogradouro: "Rua",
-  nomeEndereco: "",
-  numero: "",
-  complemento: "",
-  cep: "",
-  cidade: "",
-  uf: "",
-  isPrincipal: false,
-};
-
-const LOJA_FORM_INICIAL: LojaFormState = {
-  nomeFantasia: "",
-  tipoDocumentoFiscal: "1",
-  documentoFiscal: "",
-  descricao: "",
-  emailContato: "",
-  ativa: true,
-};
-
-const PRODUTO_FORM_INICIAL: ProdutoFormState = {
-  nome: "",
-  categoria: "",
-  preco: "",
-  estoque: "0",
-  descricao: "",
-  imagemUrl: "",
-  disponivel: true,
-};
-
-const LOJA_ENTREGA_FORM_INICIAL: LojaEntregaFormState = {
-  tipoEntregaId: "1",
-  nome: "",
-  valorFrete: "0,00",
-  prazoEntregaDias: "0",
-  observacao: "",
-  ativa: true,
-};
-
-const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
-const MAX_PRODUCT_IMAGE_FILE_SIZE = 2 * 1024 * 1024;
-const currencyFormatter = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
-
-const VIEW_TABS: UserTabOption[] = [
-  { id: "comprador", label: "Comprador" },
-  { id: "loja", label: "Loja" },
-];
-
-const CONTENT_TABS_BY_VIEW: Record<PerfilVisaoId, UserTabOption[]> = {
-  comprador: [{ id: "compras", label: "Compras" }],
-  loja: [
-    { id: "produtos", label: "Produtos" },
-    { id: "vendas", label: "Vendas" },
-  ],
-};
-
-const TAB_METADATA: Record<PerfilTabId, Omit<PerfilTabContent, "itens">> = {
-  produtos: {
-    titulo: "Produtos publicados",
-    descricao: "Itens atualmente disponiveis na vitrine da sua loja.",
-    vazioTitulo: "Nenhum produto encontrado",
-    vazioDescricao: "Quando houver produtos cadastrados na loja, eles aparecerao aqui.",
-  },
-  vendas: {
-    titulo: "Desempenho de vendas",
-    descricao: "Resumo dos itens que mais convertem receita na sua loja.",
-    vazioTitulo: "Nenhuma venda encontrada",
-    vazioDescricao: "Assim que a loja tiver historico, os dados aparecerao aqui.",
-  },
-  compras: {
-    titulo: "Historico de compras",
-    descricao: "Visualize os pedidos feitos pela sua conta de comprador.",
-    vazioTitulo: "Nenhuma compra encontrada",
-    vazioDescricao: "As compras vinculadas ao usuario serao exibidas aqui.",
-  },
-};
-
-function formatarMoeda(valor: number) {
-  return currencyFormatter.format(Number(valor ?? 0));
-}
-
-function normalizarPrecoParaInput(valor?: number) {
-  if (typeof valor !== "number" || Number.isNaN(valor)) {
-    return "";
-  }
-
-  return valor.toFixed(2).replace(".", ",");
-}
-
-function normalizarPrecoParaApi(valor: string) {
-  const valorNormalizado = Number(valor.replace(/\./g, "").replace(",", "."));
-
-  if (!Number.isFinite(valorNormalizado) || valorNormalizado < 0) {
-    throw new Error("Informe um preco valido para o produto.");
-  }
-
-  return valorNormalizado;
-}
-
-function normalizarFreteParaInput(valor?: number) {
-  if (typeof valor !== "number" || Number.isNaN(valor)) {
-    return "0,00";
-  }
-
-  return valor.toFixed(2).replace(".", ",");
-}
-
-function normalizarFreteParaApi(valor: string, tipoEntregaId: number) {
-  if (tipoEntregaId === 1) {
-    return 0;
-  }
-
-  const valorNormalizado = Number(valor.replace(/\./g, "").replace(",", "."));
-
-  if (!Number.isFinite(valorNormalizado) || valorNormalizado < 0) {
-    throw new Error("Informe um valor de frete valido para a opcao de entrega.");
-  }
-
-  return valorNormalizado;
-}
-
-function normalizarPrazoEntregaParaApi(valor: string) {
-  const prazoNormalizado = Number(valor);
-
-  if (!Number.isInteger(prazoNormalizado) || prazoNormalizado < 0 || prazoNormalizado > 365) {
-    throw new Error("Informe um prazo de entrega valido entre 0 e 365 dias.");
-  }
-
-  return prazoNormalizado;
-}
-
-function obterTipoEntregaLabel(tipoEntregaId: number | null | undefined) {
-  return TIPOS_ENTREGA_OPTIONS.find((option) => option.id === tipoEntregaId)?.label ?? "Entrega";
-}
-
-function criarEntregaLojaForm(opcao?: LojaEntregaOpcao): LojaEntregaFormState {
-  if (!opcao) {
-    return LOJA_ENTREGA_FORM_INICIAL;
-  }
-
-  return {
-    id: opcao.id,
-    tipoEntregaId: String(opcao.tipoEntregaId ?? 1),
-    nome: opcao.nome,
-    valorFrete: normalizarFreteParaInput(opcao.valorFrete),
-    prazoEntregaDias: String(opcao.prazoEntregaDias ?? 0),
-    observacao: opcao.observacao ?? "",
-    ativa: opcao.ativa,
-  };
-}
-
-function ordenarEntregasLoja(opcoes: LojaEntregaOpcao[]) {
-  return [...opcoes].sort((a, b) => {
-    const tipoA = a.tipoEntregaId ?? Number.MAX_SAFE_INTEGER;
-    const tipoB = b.tipoEntregaId ?? Number.MAX_SAFE_INTEGER;
-
-    if (tipoA !== tipoB) {
-      return tipoA - tipoB;
-    }
-
-    return a.nome.localeCompare(b.nome, "pt-BR");
-  });
-}
-
-function criarProdutoForm(item?: PerfilGridItem): ProdutoFormState {
-  if (!item) {
-    return PRODUTO_FORM_INICIAL;
-  }
-
-  return {
-    id: item.produtoId,
-    nome: item.titulo,
-    categoria: item.categoriaNome ?? item.subtitulo ?? "",
-    preco: normalizarPrecoParaInput(item.precoNumero),
-    estoque: String(item.estoque ?? 0),
-    descricao: item.descricao ?? "",
-    imagemUrl: item.imagens?.[0] ?? item.imagemUrl ?? "",
-    disponivel: item.disponivel ?? true,
-  };
-}
-
-function criarCategoriasDaLoja(itens: PerfilGridItem[]): CategoriaLojaOption[] {
-  const categorias = new Map<string, CategoriaLojaOption>();
-
-  itens.forEach((item) => {
-    const categoriaId = item.categoriaId ?? item.categoriaNome ?? item.subtitulo;
-    const categoriaNome = item.categoriaNome ?? item.subtitulo;
-
-    if (!categoriaId || !categoriaNome) {
-      return;
-    }
-
-    const atual = categorias.get(categoriaId);
-
-    if (atual) {
-      atual.totalProdutos += 1;
-      return;
-    }
-
-    categorias.set(categoriaId, {
-      id: categoriaId,
-      nome: categoriaNome,
-      totalProdutos: 1,
-    });
-  });
-
-  return Array.from(categorias.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-}
-
-function criarMensagemConfirmacaoExclusaoCategoria(categoria: CategoriaLojaOption) {
-  return categoria.totalProdutos === 1
-    ? `Deseja mesmo excluir a categoria "${categoria.nome}"? O produto vinculado deixara de aparecer para os usuarios, mas continuara salvo no banco.`
-    : `Deseja mesmo excluir a categoria "${categoria.nome}"? Os ${categoria.totalProdutos} produtos vinculados deixarao de aparecer para os usuarios, mas continuarao salvos no banco.`;
-}
-
-function criarMensagemSucessoExclusaoCategoria(
-  categoria: CategoriaLojaOption,
-  totalProdutosRemovidos: number,
-) {
-  return totalProdutosRemovidos === 1
-    ? `Categoria "${categoria.nome}" removida com sucesso. O produto vinculado nao aparece mais na vitrine.`
-    : `Categoria "${categoria.nome}" removida com sucesso. ${totalProdutosRemovidos} produtos deixaram de aparecer na vitrine.`;
-}
-
-function formatarAvaliacaoMedia(avaliacaoMedia: number) {
-  return avaliacaoMedia ? `${avaliacaoMedia.toFixed(1)} / 5` : "Sem nota";
-}
-
-function formatarEnderecoLoja(
-  loja: {
-    nomeEndereco?: string | null;
-    numeroEndereco?: string | null;
-    complementoEndereco?: string | null;
-    cidade?: string | null;
-    uf?: string | null;
-  } | null,
-) {
-  if (!loja?.nomeEndereco?.trim()) {
-    return "";
-  }
-
-  const partes = [`${loja.nomeEndereco.trim()}, ${loja.numeroEndereco?.trim() || "S/N"}`];
-
-  if (loja.complementoEndereco?.trim()) {
-    partes.push(loja.complementoEndereco.trim());
-  }
-
-  const cidadeUf = [loja.cidade?.trim(), loja.uf?.trim()].filter(Boolean).join("/");
-
-  if (cidadeUf) {
-    partes.push(cidadeUf);
-  }
-
-  return partes.join(" - ");
-}
-
-function criarCardComprador(
-  usuario: {
-    nome: string;
-    email: string;
-    telefone: string;
-    endereco: string;
-    avatarUrl?: string;
-    resumo?: string;
-    contaVerificada?: boolean;
-  } | null,
-  podeGerenciarLoja: boolean,
-): PerfilIdentityCardData | null {
-  if (!usuario) {
-    return null;
-  }
-
-  return {
-    rotulo: "Perfil do usuario",
-    nome: usuario.nome,
-    resumo: usuario.resumo || "Area pronta para bio, cargo ou descricao curta do usuario.",
-    avatarUrl: usuario.avatarUrl,
-    fotoHint: "Clique na foto para alterar",
-    badge: usuario.contaVerificada ? "Conta verificada" : "Conta em configuracao",
-    infoItems: [
-      { key: "email", label: "Email", value: usuario.email },
-      { key: "telefone", label: "Telefone", value: usuario.telefone },
-      { key: "endereco", label: "Endereco", value: usuario.endereco },
-    ],
-    footerText: podeGerenciarLoja
-      ? "Sua loja pode usar o endereco e o telefone principal que ja estao cadastrados no perfil."
-      : "Cadastre um telefone e um endereco principal para liberar a criacao da loja.",
-  };
-}
-
-function criarCardLoja(
-  loja: {
-    nomeFantasia: string;
-    descricao?: string | null;
-    emailContato?: string | null;
-    avatarUrl?: string | null;
-    logoUrl?: string | null;
-    numeroTelefone?: string | null;
-    ativa: boolean;
-    nomeEndereco?: string | null;
-    numeroEndereco?: string | null;
-    complementoEndereco?: string | null;
-    cidade?: string | null;
-    uf?: string | null;
-  } | null,
-  usuario: {
-    email: string;
-    telefone: string;
-    endereco: string;
-  } | null,
-  avatarLojaUrl?: string,
-): PerfilIdentityCardData | null {
-  if (!loja) {
-    return null;
-  }
-
-  return {
-    rotulo: "Perfil da loja",
-    nome: loja.nomeFantasia,
-    resumo:
-      loja.descricao?.trim() ||
-      "Esta aba mostra a apresentacao publica e os principais dados operacionais da loja.",
-    avatarUrl: avatarLojaUrl || loja.logoUrl || loja.avatarUrl || undefined,
-    fotoHint: "Clique na foto para alterar a imagem da loja",
-    badge: loja.ativa ? "Loja ativa" : "Loja em configuracao",
-    infoItems: [
-      {
-        key: "email",
-        label: "Email de contato",
-        value: loja.emailContato?.trim() || usuario?.email || "",
-      },
-      {
-        key: "telefone",
-        label: "Telefone da loja",
-        value: loja.numeroTelefone?.trim() || usuario?.telefone || "",
-      },
-      {
-        key: "endereco",
-        label: "Endereco da loja",
-        value: formatarEnderecoLoja(loja) || usuario?.endereco || "",
-      },
-    ],
-    footerText:
-      "Use esta visao para revisar os dados publicos da loja e acompanhar a performance da sua vitrine.",
-  };
-}
-
-function criarStatsComprador(
-  usuario: {
-    telefones: Array<unknown>;
-    enderecos: Array<unknown>;
-    contaVerificada?: boolean;
-  } | null,
-  stats: { totalCompras: number },
-): PerfilStatCardItem[] {
-  return [
-    {
-      key: "total-compras",
-      label: "Compras",
-      value: `${stats.totalCompras}`,
-    },
-    {
-      key: "telefones",
-      label: "Telefones",
-      value: `${usuario?.telefones.length ?? 0}`,
-    },
-    {
-      key: "enderecos",
-      label: "Enderecos",
-      value: `${usuario?.enderecos.length ?? 0}`,
-    },
-    {
-      key: "status-conta",
-      label: "Conta",
-      value: usuario?.contaVerificada ? "Verificada" : "Em ajuste",
-    },
-  ];
-}
-
-function resolverAvatarLoja(
-  loja: {
-    id: number;
-    avatarUrl?: string | null;
-    logoUrl?: string | null;
-  } | null,
-) {
-  if (!loja) {
-    return "";
-  }
-
-  const avatarDaApi = loja.logoUrl?.trim() || loja.avatarUrl?.trim() || "";
-
-  if (avatarDaApi) {
-    return avatarDaApi;
-  }
-
-  return getStoredLojaAvatar(loja.id) ?? "";
-}
-
-function criarStatsLoja(
-  stats: {
-    avaliacaoMedia: number;
-    totalProdutos: number;
-    totalVendas: number;
-    faturamentoBruto: number;
-    ticketMedio: number;
-  },
-): PerfilStatCardItem[] {
-  return [
-    {
-      key: "avaliacao-media",
-      label: "Avaliacao media",
-      value: formatarAvaliacaoMedia(stats.avaliacaoMedia),
-    },
-    {
-      key: "total-produtos",
-      label: "Produtos",
-      value: `${stats.totalProdutos}`,
-    },
-    {
-      key: "total-vendas",
-      label: "Vendas",
-      value: `${stats.totalVendas}`,
-    },
-    {
-      key: "faturamento-bruto",
-      label: "Faturamento",
-      value: formatarMoeda(stats.faturamentoBruto),
-    },
-    {
-      key: "ticket-medio",
-      label: "Ticket medio",
-      value: formatarMoeda(stats.ticketMedio),
-    },
-  ];
-}
-
-function lerArquivoComoDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Nao foi possivel carregar a imagem selecionada."));
-    };
-
-    reader.onerror = () => {
-      reject(new Error("Nao foi possivel ler o arquivo da imagem."));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function normalizarCep(cep: string) {
-  return cep.replace(/\D/g, "");
-}
-
-function formatarCep(cep: string) {
-  const cepNormalizado = normalizarCep(cep).slice(0, 8);
-
-  if (cepNormalizado.length <= 5) {
-    return cepNormalizado;
-  }
-
-  return `${cepNormalizado.slice(0, 5)}-${cepNormalizado.slice(5)}`;
-}
-
-function telefoneTemConteudo(telefone: PerfilTelefoneFormState | null) {
-  return Boolean(telefone?.numero.trim());
-}
-
-function normalizarTelefoneParaComparacao(telefone: string) {
-  return telefone.replace(/\D/g, "");
-}
-
-function enderecoTemConteudo(endereco: PerfilEnderecoFormState | null) {
-  if (!endereco) {
-    return false;
-  }
-
-  return Boolean(
-    endereco.tipoLogradouro.trim() ||
-      endereco.nomeEndereco.trim() ||
-      endereco.numero.trim() ||
-      endereco.complemento.trim() ||
-      endereco.cep.trim() ||
-      endereco.cidade.trim() ||
-      endereco.uf.trim(),
-  );
-}
-
-function obterErroEnderecoInvalido(endereco: PerfilEnderecoFormState | null) {
-  if (!endereco || !enderecoTemConteudo(endereco)) {
-    return null;
-  }
-
-  if (!endereco.tipoLogradouro.trim()) {
-    return "Selecione o tipo de logradouro do novo endereco.";
-  }
-
-  if (!endereco.nomeEndereco.trim()) {
-    return "Informe o nome do novo endereco.";
-  }
-
-  if (!endereco.numero.trim()) {
-    return "Informe o numero do novo endereco.";
-  }
-
-  if (normalizarCep(endereco.cep).length !== 8) {
-    return "Informe um CEP valido com 8 numeros para o novo endereco.";
-  }
-
-  if (!endereco.cidade.trim()) {
-    return "Informe a cidade do novo endereco.";
-  }
-
-  if (endereco.uf.trim().length !== 2) {
-    return "Informe uma UF valida com 2 letras para o novo endereco.";
-  }
-
-  return null;
-}
-
-function normalizarValorEnderecoFormulario(
-  field: keyof PerfilEnderecoFormState,
-  value: string,
-) {
-  if (field === "cep") {
-    return formatarCep(value);
-  }
-
-  if (field === "uf") {
-    return value.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase();
-  }
-
-  return value;
-}
-
-function obterMensagemErroLoja(error: unknown) {
-  const fallback = "Nao foi possivel salvar a loja.";
-  const message = error instanceof Error ? error.message : fallback;
-
-  if (
-    message.includes("Cannot insert the value NULL into column 'Slug'") &&
-    message.includes("TBL_LOJA")
-  ) {
-    return "A API da loja no Azure ainda esta com o banco desatualizado: a coluna Slug continua obrigatoria, mas o contrato atual da loja nao envia mais esse campo. Aplique a migration `20260521044322_RemoveSkuSlugProdutosLojas` na API e tente novamente.";
-  }
-
-  return message || fallback;
-}
-
-function mapearTelefoneParaFormulario(telefone: UsuarioTelefonePerfil): PerfilTelefoneFormState {
-  return {
-    id: telefone.id,
-    numero: telefone.numero,
-    isPrincipal: telefone.isPrincipal,
-  };
-}
-
-function deduplicarTelefonesParaFormulario(
-  telefones: PerfilTelefoneFormState[],
-  telefoneLojaId?: number | null,
-) {
-  const telefonesPorNumero = new Map<string, PerfilTelefoneFormState[]>();
-
-  for (const telefone of telefones) {
-    const numeroNormalizado =
-      normalizarTelefoneParaComparacao(telefone.numero) || `sem-numero-${telefone.id ?? telefone.numero}`;
-    const grupoAtual = telefonesPorNumero.get(numeroNormalizado) ?? [];
-
-    grupoAtual.push(telefone);
-    telefonesPorNumero.set(numeroNormalizado, grupoAtual);
-  }
-
-  const telefonesUnicos: PerfilTelefoneFormState[] = [];
-  const telefonesDuplicadosIds: number[] = [];
-
-  for (const grupo of telefonesPorNumero.values()) {
-    const telefoneCanonical =
-      grupo.find((telefone) => telefone.id === telefoneLojaId) ??
-      grupo.find((telefone) => telefone.isPrincipal) ??
-      grupo[0];
-
-    telefonesUnicos.push({
-      ...telefoneCanonical,
-      isPrincipal: grupo.some((telefone) => telefone.isPrincipal),
-    });
-
-    grupo.forEach((telefone) => {
-      if (telefone.id && telefone.id !== telefoneCanonical.id) {
-        telefonesDuplicadosIds.push(telefone.id);
-      }
-    });
-  }
-
-  const estadoNormalizado = normalizarPrincipalTelefones(telefonesUnicos, null);
-
-  return {
-    telefones: estadoNormalizado.telefones,
-    telefonesDuplicadosIds,
-  };
-}
-
-function encontrarTelefoneDuplicado(telefones: PerfilTelefoneFormState[]) {
-  const telefonesNormalizados = new Set<string>();
-
-  for (const telefone of telefones) {
-    const numeroNormalizado = normalizarTelefoneParaComparacao(telefone.numero);
-
-    if (!numeroNormalizado) {
-      continue;
-    }
-
-    if (telefonesNormalizados.has(numeroNormalizado)) {
-      return true;
-    }
-
-    telefonesNormalizados.add(numeroNormalizado);
-  }
-
-  return false;
-}
-
-function mapearEnderecoParaFormulario(endereco: UsuarioEnderecoPerfil): PerfilEnderecoFormState {
-  return {
-    id: endereco.id,
-    tipoLogradouro: endereco.tipoLogradouro,
-    nomeEndereco: endereco.nomeEndereco,
-    numero: endereco.numero,
-    complemento: endereco.complemento ?? "",
-    cep: endereco.cep,
-    cidade: endereco.cidade,
-    uf: endereco.uf,
-    isPrincipal: endereco.isPrincipal,
-  };
-}
-
-function normalizarPrincipalTelefones(
-  telefones: PerfilTelefoneFormState[],
-  novoTelefone: PerfilTelefoneFormState | null,
-) {
-  if (novoTelefone?.isPrincipal) {
-    return {
-      telefones: telefones.map((telefone) => ({ ...telefone, isPrincipal: false })),
-      novoTelefone,
-    };
-  }
-
-  const principalIndex = telefones.findIndex((telefone) => telefone.isPrincipal);
-
-  if (principalIndex >= 0) {
-    return {
-      telefones: telefones.map((telefone, index) => ({
-        ...telefone,
-        isPrincipal: index === principalIndex,
-      })),
-      novoTelefone: novoTelefone ? { ...novoTelefone, isPrincipal: false } : null,
-    };
-  }
-
-  if (telefones.length > 0) {
-    return {
-      telefones: telefones.map((telefone, index) => ({
-        ...telefone,
-        isPrincipal: index === 0,
-      })),
-      novoTelefone: novoTelefone ? { ...novoTelefone, isPrincipal: false } : null,
-    };
-  }
-
-  if (novoTelefone) {
-    return {
-      telefones,
-      novoTelefone: { ...novoTelefone, isPrincipal: true },
-    };
-  }
-
-  return {
-    telefones,
-    novoTelefone,
-  };
-}
-
-function normalizarPrincipalEnderecos(
-  enderecos: PerfilEnderecoFormState[],
-  novoEndereco: PerfilEnderecoFormState | null,
-) {
-  if (novoEndereco?.isPrincipal) {
-    return {
-      enderecos: enderecos.map((endereco) => ({ ...endereco, isPrincipal: false })),
-      novoEndereco,
-    };
-  }
-
-  const principalIndex = enderecos.findIndex((endereco) => endereco.isPrincipal);
-
-  if (principalIndex >= 0) {
-    return {
-      enderecos: enderecos.map((endereco, index) => ({
-        ...endereco,
-        isPrincipal: index === principalIndex,
-      })),
-      novoEndereco: novoEndereco ? { ...novoEndereco, isPrincipal: false } : null,
-    };
-  }
-
-  if (enderecos.length > 0) {
-    return {
-      enderecos: enderecos.map((endereco, index) => ({
-        ...endereco,
-        isPrincipal: index === 0,
-      })),
-      novoEndereco: novoEndereco ? { ...novoEndereco, isPrincipal: false } : null,
-    };
-  }
-
-  if (novoEndereco) {
-    return {
-      enderecos,
-      novoEndereco: { ...novoEndereco, isPrincipal: true },
-    };
-  }
-
-  return {
-    enderecos,
-    novoEndereco,
-  };
-}
+import { SecaoProdutosLoja } from "./perfilUsuario/SecaoProdutosLoja";
+import type { CategoriaLojaOption, PerfilEnderecoFormState } from "./perfilUsuario/tipos";
+import { useEstadoLocalPerfilUsuario } from "./perfilUsuario/useEstadoLocalPerfilUsuario";
+import {
+  ABAS_DE_CONTEUDO_POR_VISAO,
+  ABAS_DE_VISAO,
+  ENDERECO_FORM_INICIAL,
+  LOJA_ENTREGA_FORM_INICIAL,
+  MAX_AVATAR_FILE_SIZE,
+  MAX_PRODUCT_IMAGE_FILE_SIZE,
+  METADADOS_ABAS,
+  TELEFONE_FORM_INICIAL,
+  criarCardComprador,
+  criarCardLoja,
+  criarCategoriasDaLoja,
+  criarEntregaLojaForm,
+  criarMensagemSucessoExclusaoCategoria,
+  criarProdutoForm,
+  criarStatsComprador,
+  criarStatsLoja,
+  deduplicarTelefonesParaFormulario,
+  enderecoTemConteudo,
+  encontrarTelefoneDuplicado,
+  formatarMoeda,
+  lerArquivoComoDataUrl,
+  mapearEnderecoParaFormulario,
+  mapearTelefoneParaFormulario,
+  normalizarCep,
+  normalizarFreteParaApi,
+  normalizarPrazoEntregaParaApi,
+  normalizarPrecoParaApi,
+  normalizarPrincipalEnderecos,
+  normalizarPrincipalTelefones,
+  normalizarValorEnderecoFormulario,
+  obterErroEnderecoInvalido,
+  obterMensagemErroLoja,
+  obterTipoEntregaLabel,
+  ordenarEntregasLoja,
+  resolverAvatarLoja,
+  telefoneTemConteudo,
+} from "./perfilUsuario/utilitarios";
 
 export function PerfilUsuarioPage() {
   // Consome toda a logica do perfil em um hook separado da interface.
@@ -926,62 +141,99 @@ export function PerfilUsuarioPage() {
     setAbaAtiva,
     recarregarDados,
   } = usePerfilUsuarioData();
-  const [visaoAtiva, setVisaoAtiva] = useState<PerfilVisaoId>("comprador");
-  const [modalAberto, setModalAberto] = useState<ModalAberto>(null);
-  const [perfilForm, setPerfilForm] = useState<PerfilFormState>(PERFIL_FORM_INICIAL);
-  const [avatarDestino, setAvatarDestino] = useState<AvatarDestino>("usuario");
-  const [avatarPreview, setAvatarPreview] = useState("");
-  const [avatarLojaUrl, setAvatarLojaUrl] = useState("");
-  const [avatarNomeArquivo, setAvatarNomeArquivo] = useState("");
-  const [avatarErroAcao, setAvatarErroAcao] = useState("");
-  const [isSalvandoAvatar, setIsSalvandoAvatar] = useState(false);
-  const [telefonesForm, setTelefonesForm] = useState<PerfilTelefoneFormState[]>([]);
-  const [novoTelefoneForm, setNovoTelefoneForm] = useState<PerfilTelefoneFormState | null>(null);
-  const [telefonesRemovidos, setTelefonesRemovidos] = useState<number[]>([]);
-  const [enderecosForm, setEnderecosForm] = useState<PerfilEnderecoFormState[]>([]);
-  const [novoEnderecoForm, setNovoEnderecoForm] = useState<PerfilEnderecoFormState | null>(null);
-  const [enderecosRemovidos, setEnderecosRemovidos] = useState<number[]>([]);
-  const [lojaForm, setLojaForm] = useState<LojaFormState>(LOJA_FORM_INICIAL);
-  const [produtoForm, setProdutoForm] = useState<ProdutoFormState>(PRODUTO_FORM_INICIAL);
-  const [entregaLojaForm, setEntregaLojaForm] =
-    useState<LojaEntregaFormState>(LOJA_ENTREGA_FORM_INICIAL);
-  const [entregasLoja, setEntregasLoja] = useState<LojaEntregaOpcao[]>([]);
-  const [produtoImagemArquivo, setProdutoImagemArquivo] = useState<File | null>(null);
-  const [tiposLogradouro, setTiposLogradouro] = useState<TipoLogradouroOption[]>(
-    TIPOS_LOGRADOURO_FALLBACK,
-  );
-  const [perfilErroAcao, setPerfilErroAcao] = useState("");
-  const [lojaErroAcao, setLojaErroAcao] = useState("");
-  const [produtoErroAcao, setProdutoErroAcao] = useState("");
-  const [entregaErroAcao, setEntregaErroAcao] = useState("");
-  const [isSalvandoPerfil, setIsSalvandoPerfil] = useState(false);
-  const [isSalvandoLoja, setIsSalvandoLoja] = useState(false);
-  const [isSalvandoProduto, setIsSalvandoProduto] = useState(false);
-  const [isRemovendoProduto, setIsRemovendoProduto] = useState(false);
-  const [produtoConfirmandoExclusao, setProdutoConfirmandoExclusao] = useState(false);
-  const [isCarregandoEntregas, setIsCarregandoEntregas] = useState(false);
-  const [isSalvandoEntrega, setIsSalvandoEntrega] = useState(false);
-  const [entregaRemovendoId, setEntregaRemovendoId] = useState<number | null>(null);
-  const [categoriaLojaAtiva, setCategoriaLojaAtiva] = useState("todas");
-  const [categoriaLojaRemovendoId, setCategoriaLojaRemovendoId] = useState<string | null>(null);
-  const [categoriaLojaModoExclusao, setCategoriaLojaModoExclusao] = useState(false);
-  const [categoriaLojaPendenteExclusao, setCategoriaLojaPendenteExclusao] =
-    useState<CategoriaLojaOption | null>(null);
-  const [lojaFeedback, setLojaFeedback] = useState<LojaFeedbackState | null>(null);
+  const {
+    avatarDestino,
+    avatarErroAcao,
+    avatarLojaUrl,
+    avatarNomeArquivo,
+    avatarPreview,
+    categoriaLojaAtiva,
+    categoriaLojaModoExclusao,
+    categoriaLojaPendenteExclusao,
+    categoriaLojaRemovendoId,
+    enderecosForm,
+    enderecosRemovidos,
+    entregaErroAcao,
+    entregaLojaForm,
+    entregaRemovendoId,
+    entregasLoja,
+    fecharModalLocal,
+    isCarregandoEntregas,
+    isRemovendoProduto,
+    isSalvandoAvatar,
+    isSalvandoEntrega,
+    isSalvandoLoja,
+    isSalvandoPerfil,
+    isSalvandoProduto,
+    lojaErroAcao,
+    lojaFeedback,
+    lojaForm,
+    modalAberto,
+    novoEnderecoForm,
+    novoTelefoneForm,
+    perfilErroAcao,
+    perfilForm,
+    produtoConfirmandoExclusao,
+    produtoErroAcao,
+    produtoForm,
+    produtoImagemArquivo,
+    setAvatarDestino,
+    setAvatarErroAcao,
+    setAvatarLojaUrl,
+    setAvatarNomeArquivo,
+    setAvatarPreview,
+    setCategoriaLojaAtiva,
+    setCategoriaLojaModoExclusao,
+    setCategoriaLojaPendenteExclusao,
+    setCategoriaLojaRemovendoId,
+    setEnderecosForm,
+    setEnderecosRemovidos,
+    setEntregaErroAcao,
+    setEntregaLojaForm,
+    setEntregaRemovendoId,
+    setEntregasLoja,
+    setIsCarregandoEntregas,
+    setIsRemovendoProduto,
+    setIsSalvandoAvatar,
+    setIsSalvandoEntrega,
+    setIsSalvandoLoja,
+    setIsSalvandoPerfil,
+    setIsSalvandoProduto,
+    setLojaErroAcao,
+    setLojaFeedback,
+    setLojaForm,
+    setModalAberto,
+    setNovoEnderecoForm,
+    setNovoTelefoneForm,
+    setPerfilErroAcao,
+    setPerfilForm,
+    setProdutoConfirmandoExclusao,
+    setProdutoErroAcao,
+    setProdutoForm,
+    setProdutoImagemArquivo,
+    setTelefonesForm,
+    setTelefonesRemovidos,
+    setTiposLogradouro,
+    setVisaoAtiva,
+    telefonesForm,
+    telefonesRemovidos,
+    tiposLogradouro,
+    visaoAtiva,
+  } = useEstadoLocalPerfilUsuario();
 
   const podeGerenciarLoja = Boolean(usuario?.enderecoPrincipalId && usuario?.telefonePrincipalId);
   const produtosDaLoja = tabItems.produtos;
   const categoriasDaLoja = criarCategoriasDaLoja(produtosDaLoja);
   const visoesDisponiveis = temLoja
-    ? VIEW_TABS
-    : VIEW_TABS.filter((visao) => visao.id !== "loja");
-  const abasDisponiveis = CONTENT_TABS_BY_VIEW[visaoAtiva];
+    ? ABAS_DE_VISAO
+    : ABAS_DE_VISAO.filter((visao) => visao.id !== "loja");
+  const abasDisponiveis = ABAS_DE_CONTEUDO_POR_VISAO[visaoAtiva];
   const abaAtivaResolvida = abasDisponiveis.some((aba) => aba.id === abaAtiva)
     ? (abaAtiva as PerfilTabId)
     : (abasDisponiveis[0]?.id as PerfilTabId);
   const isStoreProductsTab = visaoAtiva === "loja" && abaAtivaResolvida === "produtos";
   const tabContent: PerfilTabContent = {
-    ...TAB_METADATA[abaAtivaResolvida],
+    ...METADADOS_ABAS[abaAtivaResolvida],
     itens: tabItems[abaAtivaResolvida],
   };
   const itensExibidos =
@@ -1095,23 +347,7 @@ export function PerfilUsuarioPage() {
   }, [usuario]);
 
   function fecharModal() {
-    setModalAberto(null);
-    setAvatarDestino("usuario");
-    setAvatarPreview("");
-    setAvatarNomeArquivo("");
-    setAvatarErroAcao("");
-    setPerfilErroAcao("");
-    setLojaErroAcao("");
-    setProdutoErroAcao("");
-    setEntregaErroAcao("");
-    setProdutoConfirmandoExclusao(false);
-    setProdutoForm(PRODUTO_FORM_INICIAL);
-    setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
-    setProdutoImagemArquivo(null);
-    setNovoTelefoneForm(null);
-    setNovoEnderecoForm(null);
-    setTelefonesRemovidos([]);
-    setEnderecosRemovidos([]);
+    fecharModalLocal();
   }
 
   function abrirModalAvatar() {
@@ -2261,172 +1497,22 @@ export function PerfilUsuarioPage() {
                     </div>
 
                     {isStoreProductsTab ? (
-                      <div className="space-y-3">
-                        {lojaFeedback ? (
-                          <div
-                            className={`rounded-2xl border px-4 py-3 text-sm ${
-                              lojaFeedback.tone === "success"
-                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-                                : "border-red-500/20 bg-red-500/10 text-red-200"
-                            }`.trim()}
-                          >
-                            {lojaFeedback.message}
-                          </div>
-                        ) : null}
-
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-white">Categorias da loja</p>
-                            <p className="text-xs text-neutral-400">
-                              Filtre os produtos pelas categorias ja cadastradas na sua vitrine.
-                            </p>
-                          </div>
-                        </div>
-
-                        {categoriaLojaModoExclusao ? (
-                          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                            Clique no <span className="font-semibold text-red-200">X</span> da
-                            categoria que deseja excluir da vitrine.
-                          </div>
-                        ) : null}
-
-                        {categoriaLojaPendenteExclusao ? (
-                          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
-                            <p className="font-medium text-red-200">Confirmar exclusao da categoria</p>
-                            <p className="mt-2">
-                              {criarMensagemConfirmacaoExclusaoCategoria(
-                                categoriaLojaPendenteExclusao,
-                              )}
-                            </p>
-
-                            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                              <Botao
-                                type="button"
-                                variant="secondary"
-                                disabled={Boolean(categoriaLojaRemovendoId)}
-                                onClick={() => setCategoriaLojaPendenteExclusao(null)}
-                                className="h-11 sm:w-auto sm:px-6"
-                              >
-                                Cancelar
-                              </Botao>
-
-                              <Botao
-                                type="button"
-                                disabled={Boolean(categoriaLojaRemovendoId)}
-                                onClick={() => void handleRemoverCategoriaLoja()}
-                                className="h-11 border-red-400/20 bg-red-500/80 text-white hover:bg-red-500 sm:w-auto sm:px-6"
-                                icon={<Trash2 className="h-4 w-4" />}
-                              >
-                                {categoriaLojaRemovendoId === categoriaLojaPendenteExclusao.id
-                                  ? "Excluindo categoria..."
-                                  : "Excluir categoria"}
-                              </Botao>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {categoriasDaLoja.length > 0 ? (
-                          <>
-                            <div className="flex justify-end">
-                              <button
-                                type="button"
-                                onClick={
-                                  categoriaLojaModoExclusao
-                                    ? handleCancelarModoExclusaoCategorias
-                                    : handleAlternarModoExclusaoCategorias
-                                }
-                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 ${
-                                  categoriaLojaModoExclusao
-                                    ? "border-red-400/40 bg-red-400/10 text-red-200 hover:border-red-400/60 hover:bg-red-400/15 focus-visible:ring-red-400/50"
-                                    : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300 hover:border-yellow-400/50 hover:bg-yellow-400/15 focus-visible:ring-yellow-400/60"
-                                }`.trim()}
-                                aria-label={
-                                  categoriaLojaModoExclusao
-                                    ? "Cancelar exclusao de categorias"
-                                    : "Ativar modo de exclusao de categorias"
-                                }
-                                title={
-                                  categoriaLojaModoExclusao
-                                    ? "Cancelar exclusao de categorias"
-                                    : "Ativar modo de exclusao de categorias"
-                                }
-                              >
-                                {categoriaLojaModoExclusao ? (
-                                  <X className="h-5 w-5" />
-                                ) : (
-                                  <Trash2 className="h-5 w-5" />
-                                )}
-                              </button>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setCategoriaLojaAtiva("todas")}
-                              className={`rounded-full border px-3 py-2 text-sm transition ${
-                                categoriaLojaAtiva === "todas"
-                                  ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
-                                  : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
-                              }`.trim()}
-                            >
-                              Todas
-                            </button>
-
-                            {categoriasDaLoja.map((categoria) => {
-                              const categoriaAtiva = categoriaLojaAtiva === categoria.id;
-                              const categoriaRemovendo = categoriaLojaRemovendoId === categoria.id;
-
-                              return (
-                                <div
-                                  key={categoria.id}
-                                  className={`flex items-center overflow-hidden rounded-full border transition ${
-                                    categoriaAtiva
-                                      ? "border-yellow-400/40 bg-yellow-400/10"
-                                      : "border-white/10 bg-black"
-                                  }`.trim()}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => setCategoriaLojaAtiva(categoria.id)}
-                                    className={`px-3 py-2 text-sm transition ${
-                                      categoriaAtiva
-                                        ? "text-yellow-300"
-                                        : "text-neutral-400 hover:text-white"
-                                    }`.trim()}
-                                  >
-                                    {categoria.nome}{" "}
-                                    <span className="text-xs text-neutral-500">
-                                      ({categoria.totalProdutos})
-                                    </span>
-                                  </button>
-
-                                  {categoriaLojaModoExclusao ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSolicitarRemocaoCategoriaLoja(categoria)}
-                                      disabled={categoriaRemovendo}
-                                      className={`border-l px-3 py-2 transition ${
-                                        categoriaAtiva
-                                          ? "border-yellow-400/20 text-red-200 hover:bg-red-400/15"
-                                          : "border-white/10 text-red-300 hover:bg-red-400/10"
-                                      } ${categoriaRemovendo ? "cursor-not-allowed opacity-60" : ""}`.trim()}
-                                      aria-label={`Selecionar exclusao da categoria ${categoria.nome}`}
-                                      title={`Selecionar exclusao da categoria ${categoria.nome}`}
-                                    >
-                                      <X className="h-3.5 w-3.5" />
-                                    </button>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                            </div>
-                          </>
-                        ) : (
-                          <p className="text-sm text-neutral-500">
-                            As categorias vao aparecer aqui assim que houver produtos publicados.
-                          </p>
-                        )}
-                      </div>
+                      <SecaoProdutosLoja
+                        categoriaLojaAtiva={categoriaLojaAtiva}
+                        categoriaLojaModoExclusao={categoriaLojaModoExclusao}
+                        categoriaLojaPendenteExclusao={categoriaLojaPendenteExclusao}
+                        categoriaLojaRemovendoId={categoriaLojaRemovendoId}
+                        categoriasDaLoja={categoriasDaLoja}
+                        lojaFeedback={lojaFeedback}
+                        onAlternarModoExclusaoCategorias={handleAlternarModoExclusaoCategorias}
+                        onCancelarModoExclusaoCategorias={handleCancelarModoExclusaoCategorias}
+                        onConfirmarRemocaoCategoria={() => void handleRemoverCategoriaLoja()}
+                        onLimparCategoriaPendenteExclusao={() =>
+                          setCategoriaLojaPendenteExclusao(null)
+                        }
+                        onSelecionarCategoria={setCategoriaLojaAtiva}
+                        onSolicitarRemocaoCategoriaLoja={handleSolicitarRemocaoCategoriaLoja}
+                      />
                     ) : null}
                   </div>
 
