@@ -1,25 +1,14 @@
 import { useEffect, type ChangeEvent, type FormEvent } from "react";
 import {
-  ImagePlus,
-  LockIcon,
-  Mail,
-  MapPin,
-  Minus,
-  PackageCheck,
-  Phone,
   Plus,
   Store,
-  Trash2,
   Truck,
   User,
 } from "lucide-react";
-import { Botao } from "../../Components/Botao";
 import { Spotlight } from "../../Components/home/SpotLight";
-import { Input } from "../../Components/Input";
 import { PageLayout } from "../../Components/PageLayout";
 import { ProductGrid } from "../../Components/perfil/ProductGrid";
 import { ProfileFeedback } from "../../Components/perfil/ProfileFeedback";
-import { ProfileModal } from "../../Components/perfil/ProfileModal";
 import { ProfileSection } from "../../Components/perfil/ProfileSection";
 import { ProfileSkeleton } from "../../Components/perfil/ProfileSkeleton";
 import { UserCard } from "../../Components/perfil/UserCard";
@@ -83,6 +72,11 @@ import type {
   PerfilTabId,
   PerfilVisaoId,
 } from "../../types/perfil";
+import { ModalAvatarPerfil } from "./perfilUsuario/ModalAvatarPerfil";
+import { ModalEntregasLoja } from "./perfilUsuario/ModalEntregasLoja";
+import { ModalLojaPerfil } from "./perfilUsuario/ModalLojaPerfil";
+import { ModalPerfilUsuario } from "./perfilUsuario/ModalPerfilUsuario";
+import { ModalProdutoLoja } from "./perfilUsuario/ModalProdutoLoja";
 import { SecaoProdutosLoja } from "./perfilUsuario/SecaoProdutosLoja";
 import type { CategoriaLojaOption, PerfilEnderecoFormState } from "./perfilUsuario/tipos";
 import { useEstadoLocalPerfilUsuario } from "./perfilUsuario/useEstadoLocalPerfilUsuario";
@@ -106,7 +100,6 @@ import {
   deduplicarTelefonesParaFormulario,
   enderecoTemConteudo,
   encontrarTelefoneDuplicado,
-  formatarMoeda,
   lerArquivoComoDataUrl,
   mapearEnderecoParaFormulario,
   mapearTelefoneParaFormulario,
@@ -1552,1132 +1545,110 @@ export function PerfilUsuarioPage() {
         </div>
       </div>
 
-      <ProfileModal
+      <ModalAvatarPerfil
+        altPreviewAvatar={altPreviewAvatar}
+        avatarErroAcao={avatarErroAcao}
+        avatarPreview={avatarPreview}
+        descricao={descricaoModalAvatar}
+        editandoFotoLoja={editandoFotoLoja}
         isOpen={modalAberto === "avatar"}
-        title={tituloModalAvatar}
-        description={descricaoModalAvatar}
+        isSalvandoAvatar={isSalvandoAvatar}
+        labelRemoverAvatar={labelRemoverAvatar}
+        labelSalvarAvatar={labelSalvarAvatar}
         onClose={fecharModal}
-      >
-        <div className="space-y-5">
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 text-center">
-            {avatarPreview ? (
-              <img
-                src={avatarPreview}
-                alt={altPreviewAvatar}
-                className="h-32 w-32 rounded-full border-4 border-yellow-400 object-cover"
-              />
-            ) : (
-              <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-dashed border-yellow-400/40 bg-black text-sm font-medium text-neutral-400">
-                {editandoFotoLoja ? "Sem foto da loja" : "Sem foto"}
-              </div>
-            )}
+        onRemoverAvatar={handleRemoverAvatar}
+        onSalvarAvatar={handleSalvarAvatar}
+        onSelecionarAvatar={handleAvatarSelecionado}
+        titulo={tituloModalAvatar}
+      />
 
-            <label className="w-full cursor-pointer rounded-2xl border border-dashed border-yellow-400/30 bg-yellow-400/10 px-4 py-5 text-sm text-yellow-100 transition hover:border-yellow-400/50 hover:bg-yellow-400/15">
-              <div className="flex flex-col items-center gap-3">
-                <ImagePlus className="h-6 w-6" />
-                <div className="space-y-1">
-                  <p className="font-medium text-white">
-                    {editandoFotoLoja ? "Selecionar imagem da loja" : "Selecionar imagem"}
-                  </p>
-                  <p className="text-xs text-neutral-300">
-                    PNG, JPG ou WebP com ate 2 MB
-                  </p>
-                </div>
-              </div>
-
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarSelecionado}
-              />
-            </label>
-          </div>
-
-          {avatarErroAcao ? <p className="text-sm text-red-400">{avatarErroAcao}</p> : null}
-
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Botao
-                type="button"
-                variant="secondary"
-                onClick={fecharModal}
-                className="h-11 sm:w-auto sm:px-6"
-              >
-                Cancelar
-              </Botao>
-
-              <Botao
-                type="button"
-                variant="secondary"
-                onClick={handleRemoverAvatar}
-                className="h-11 border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/20 sm:w-auto sm:px-6"
-                icon={<Trash2 className="h-4 w-4" />}
-              >
-                {labelRemoverAvatar}
-              </Botao>
-            </div>
-
-            <Botao
-              type="button"
-              disabled={isSalvandoAvatar}
-              onClick={handleSalvarAvatar}
-              className="h-11 sm:w-auto sm:px-6"
-            >
-              {isSalvandoAvatar ? "Salvando..." : labelSalvarAvatar}
-            </Botao>
-          </div>
-        </div>
-      </ProfileModal>
-
-      <ProfileModal
+      <ModalPerfilUsuario
+        enderecosForm={enderecosForm}
         isOpen={modalAberto === "perfil"}
-        title="Editar perfil"
-        description="Atualize os dados basicos da sua conta sem sair da pagina de perfil."
+        isSalvandoPerfil={isSalvandoPerfil}
+        novoEnderecoForm={novoEnderecoForm}
+        novoTelefoneForm={novoTelefoneForm}
+        onAdicionarEndereco={handleAdicionarEndereco}
+        onAdicionarTelefone={handleAdicionarTelefone}
+        onChangeEnderecoExistente={handleEnderecoExistenteChange}
+        onChangeNovoEndereco={handleNovoEnderecoChange}
+        onChangeNovoTelefone={handleNovoTelefoneChange}
+        onChangePerfilInput={handlePerfilInputChange}
+        onChangeTelefoneExistente={handleTelefoneExistenteChange}
         onClose={fecharModal}
-      >
-        <form className="space-y-5" onSubmit={handleSalvarPerfil}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Nome"
-              id="nome"
-              name="nome"
-              placeholder="Seu nome"
-              value={perfilForm.nome}
-              onChange={handlePerfilInputChange}
-              icon={<User className="h-5 w-5" />}
-              required
-            />
+        onRemoverEndereco={handleRemoverEndereco}
+        onRemoverNovoEndereco={handleRemoverNovoEndereco}
+        onRemoverNovoTelefone={handleRemoverNovoTelefone}
+        onRemoverTelefone={handleRemoverTelefone}
+        onSubmit={handleSalvarPerfil}
+        onToggleEnderecoPrincipal={handleEnderecoPrincipalChange}
+        onToggleNovoEnderecoPrincipal={handleNovoEnderecoPrincipalChange}
+        onToggleNovoTelefonePrincipal={handleNovoTelefonePrincipalChange}
+        onToggleTelefonePrincipal={handleTelefonePrincipalChange}
+        perfilErroAcao={perfilErroAcao}
+        perfilForm={perfilForm}
+        telefonesForm={telefonesForm}
+        tiposLogradouro={tiposLogradouro}
+      />
 
-            <Input
-              label="Sobrenome"
-              id="sobrenome"
-              name="sobrenome"
-              placeholder="Seu sobrenome"
-              value={perfilForm.sobrenome}
-              onChange={handlePerfilInputChange}
-              icon={<User className="h-5 w-5" />}
-              required
-            />
-          </div>
-
-          <Input
-            label="Email"
-            id="email"
-            name="email"
-            type="email"
-            placeholder="voce@exemplo.com"
-            value={perfilForm.email}
-            onChange={handlePerfilInputChange}
-            icon={<Mail className="h-5 w-5" />}
-            required
-          />
-
-          <Input
-            label="Nova senha (opcional)"
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Preencha apenas se quiser trocar a senha"
-            value={perfilForm.password}
-            onChange={handlePerfilInputChange}
-            icon={<LockIcon className="h-5 w-5" />}
-          />
-
-          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base font-semibold text-white">Telefones</h3>
-                <p className="text-sm text-neutral-400">
-                  Edite os telefones cadastrados e adicione mais um se precisar.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAdicionarTelefone}
-                disabled={Boolean(novoTelefoneForm)}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
-                  novoTelefoneForm
-                    ? "cursor-not-allowed border-white/10 bg-white/5 text-neutral-600"
-                    : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300 hover:border-yellow-400/50 hover:bg-yellow-400/20"
-                }`}
-                aria-label="Adicionar telefone"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {telefonesForm.map((telefone, index) => (
-                <div
-                  key={telefone.id ?? `telefone-${index}`}
-                  className="rounded-2xl border border-white/10 bg-black/40 p-4"
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-white">
-                      <Phone className="h-4 w-4 text-yellow-400" />
-                      <span>Telefone {index + 1}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
-                        <input
-                          type="checkbox"
-                          checked={telefone.isPrincipal}
-                          onChange={() => handleTelefonePrincipalChange(index)}
-                          className="h-3.5 w-3.5 cursor-pointer accent-yellow-500"
-                        />
-                        Principal
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoverTelefone(index)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
-                        aria-label={`Remover telefone ${index + 1}`}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <Input
-                    label="Numero"
-                    id={`telefone-${index}`}
-                    name={`telefone-${index}`}
-                    placeholder="(11) 97777-7932"
-                    value={telefone.numero}
-                    onChange={(event) => handleTelefoneExistenteChange(index, event.target.value)}
-                    required
-                  />
-                </div>
-              ))}
-
-              {novoTelefoneForm ? (
-                <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-white">
-                      <Plus className="h-4 w-4 text-yellow-400" />
-                      <span>Novo telefone</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
-                        <input
-                          type="checkbox"
-                          checked={novoTelefoneForm.isPrincipal}
-                          onChange={handleNovoTelefonePrincipalChange}
-                          className="h-3.5 w-3.5 cursor-pointer accent-yellow-500"
-                        />
-                        Principal
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={handleRemoverNovoTelefone}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
-                        aria-label="Remover novo telefone"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <Input
-                    label="Numero"
-                    id="novo-telefone"
-                    name="novoTelefone"
-                    placeholder="(11) 97777-7932"
-                    value={novoTelefoneForm.numero}
-                    onChange={(event) => handleNovoTelefoneChange(event.target.value)}
-                  />
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base font-semibold text-white">Enderecos</h3>
-                <p className="text-sm text-neutral-400">
-                  Revise os enderecos atuais e use o `+` para abrir mais um cadastro.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAdicionarEndereco}
-                disabled={Boolean(novoEnderecoForm)}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
-                  novoEnderecoForm
-                    ? "cursor-not-allowed border-white/10 bg-white/5 text-neutral-600"
-                    : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300 hover:border-yellow-400/50 hover:bg-yellow-400/20"
-                }`}
-                aria-label="Adicionar endereco"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {enderecosForm.map((endereco, index) => (
-                <div
-                  key={endereco.id ?? `endereco-${index}`}
-                  className="rounded-2xl border border-white/10 bg-black/40 p-4"
-                >
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-white">
-                      <MapPin className="h-4 w-4 text-yellow-400" />
-                      <span>Endereco {index + 1}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
-                        <input
-                          type="checkbox"
-                          checked={endereco.isPrincipal}
-                          onChange={() => handleEnderecoPrincipalChange(index)}
-                          className="h-3.5 w-3.5 cursor-pointer accent-yellow-500"
-                        />
-                        Principal
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoverEndereco(index)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
-                        aria-label={`Remover endereco ${index + 1}`}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="flex flex-col gap-1">
-                      <label
-                        htmlFor={`tipoLogradouro-${index}`}
-                        className="text-[#6b6b6b]"
-                      >
-                        Tipo de logradouro
-                      </label>
-                      <select
-                        id={`tipoLogradouro-${index}`}
-                        value={endereco.tipoLogradouro}
-                        onChange={(event) =>
-                          handleEnderecoExistenteChange(
-                            index,
-                            "tipoLogradouro",
-                            event.target.value,
-                          )
-                        }
-                        className="w-full rounded-xl border border-[#6B6B6B] bg-black p-2 text-white outline-none transition focus:border-yellow-400"
-                      >
-                        {tiposLogradouro.map((tipo) => (
-                          <option key={tipo.codigo} value={tipo.codigo}>
-                            {tipo.descricao}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <Input
-                      label="Nome do endereco"
-                      id={`nomeEndereco-${index}`}
-                      name={`nomeEndereco-${index}`}
-                      autoComplete="off"
-                      value={endereco.nomeEndereco}
-                      onChange={(event) =>
-                        handleEnderecoExistenteChange(index, "nomeEndereco", event.target.value)
-                      }
-                      required
-                    />
-
-                    <Input
-                      label="Numero"
-                      id={`numeroEndereco-${index}`}
-                      name={`numeroEndereco-${index}`}
-                      autoComplete="off"
-                      value={endereco.numero}
-                      onChange={(event) =>
-                        handleEnderecoExistenteChange(index, "numero", event.target.value)
-                      }
-                      required
-                    />
-
-                    <Input
-                      label="Complemento"
-                      id={`complementoEndereco-${index}`}
-                      name={`complementoEndereco-${index}`}
-                      autoComplete="off"
-                      value={endereco.complemento}
-                      onChange={(event) =>
-                        handleEnderecoExistenteChange(index, "complemento", event.target.value)
-                      }
-                    />
-
-                    <Input
-                      label="CEP"
-                      id={`cepEndereco-${index}`}
-                      name={`cepEndereco-${index}`}
-                      autoComplete="off"
-                      inputMode="numeric"
-                      value={endereco.cep}
-                      onChange={(event) =>
-                        handleEnderecoExistenteChange(index, "cep", event.target.value)
-                      }
-                      required
-                    />
-
-                    <Input
-                      label="Cidade"
-                      id={`cidadeEndereco-${index}`}
-                      name={`cidadeEndereco-${index}`}
-                      autoComplete="off"
-                      value={endereco.cidade}
-                      onChange={(event) =>
-                        handleEnderecoExistenteChange(index, "cidade", event.target.value)
-                      }
-                      required
-                    />
-
-                    <Input
-                      label="UF"
-                      id={`ufEndereco-${index}`}
-                      name={`ufEndereco-${index}`}
-                      autoComplete="off"
-                      value={endereco.uf}
-                      onChange={(event) =>
-                        handleEnderecoExistenteChange(index, "uf", event.target.value.toUpperCase())
-                      }
-                      maxLength={2}
-                      required
-                    />
-                  </div>
-                </div>
-              ))}
-
-              {novoEnderecoForm ? (
-                <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 p-4">
-                  <div className="mb-4 flex items-center justify-between gap-3 text-sm font-medium text-white">
-                    <div className="flex items-center gap-2">
-                      <Plus className="h-4 w-4 text-yellow-400" />
-                      <span>Novo endereco</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-200">
-                        <input
-                          type="checkbox"
-                          checked={novoEnderecoForm.isPrincipal}
-                          onChange={handleNovoEnderecoPrincipalChange}
-                          className="h-3.5 w-3.5 cursor-pointer accent-yellow-500"
-                        />
-                        Principal
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={handleRemoverNovoEndereco}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
-                        aria-label="Remover novo endereco"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="flex flex-col gap-1">
-                      <label htmlFor="novoTipoLogradouro" className="text-[#6b6b6b]">
-                        Tipo de logradouro
-                      </label>
-                      <select
-                        id="novoTipoLogradouro"
-                        value={novoEnderecoForm.tipoLogradouro}
-                        onChange={(event) =>
-                          handleNovoEnderecoChange("tipoLogradouro", event.target.value)
-                        }
-                        className="w-full rounded-xl border border-[#6B6B6B] bg-black p-2 text-white outline-none transition focus:border-yellow-400"
-                      >
-                        {tiposLogradouro.map((tipo) => (
-                          <option key={tipo.codigo} value={tipo.codigo}>
-                            {tipo.descricao}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <Input
-                      label="Nome do endereco"
-                      id="novoNomeEndereco"
-                      name="novoNomeEndereco"
-                      autoComplete="off"
-                      value={novoEnderecoForm.nomeEndereco}
-                      onChange={(event) =>
-                        handleNovoEnderecoChange("nomeEndereco", event.target.value)
-                      }
-                    />
-
-                    <Input
-                      label="Numero"
-                      id="novoNumeroEndereco"
-                      name="novoNumeroEndereco"
-                      autoComplete="off"
-                      value={novoEnderecoForm.numero}
-                      onChange={(event) =>
-                        handleNovoEnderecoChange("numero", event.target.value)
-                      }
-                    />
-
-                    <Input
-                      label="Complemento"
-                      id="novoComplementoEndereco"
-                      name="novoComplementoEndereco"
-                      autoComplete="off"
-                      value={novoEnderecoForm.complemento}
-                      onChange={(event) =>
-                        handleNovoEnderecoChange("complemento", event.target.value)
-                      }
-                    />
-
-                    <Input
-                      label="CEP"
-                      id="novoCepEndereco"
-                      name="novoCepEndereco"
-                      autoComplete="off"
-                      inputMode="numeric"
-                      value={novoEnderecoForm.cep}
-                      onChange={(event) => handleNovoEnderecoChange("cep", event.target.value)}
-                    />
-
-                    <Input
-                      label="Cidade"
-                      id="novaCidadeEndereco"
-                      name="novaCidadeEndereco"
-                      autoComplete="off"
-                      value={novoEnderecoForm.cidade}
-                      onChange={(event) =>
-                        handleNovoEnderecoChange("cidade", event.target.value)
-                      }
-                    />
-
-                    <Input
-                      label="UF"
-                      id="novaUfEndereco"
-                      name="novaUfEndereco"
-                      autoComplete="off"
-                      value={novoEnderecoForm.uf}
-                      onChange={(event) =>
-                        handleNovoEnderecoChange("uf", event.target.value.toUpperCase())
-                      }
-                      maxLength={2}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          {perfilErroAcao ? <p className="text-sm text-red-400">{perfilErroAcao}</p> : null}
-
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Botao
-              type="button"
-              variant="secondary"
-              onClick={fecharModal}
-              className="h-11 sm:w-auto sm:px-6"
-            >
-              Cancelar
-            </Botao>
-
-            <Botao
-              type="submit"
-              disabled={isSalvandoPerfil}
-              className="h-11 sm:w-auto sm:px-6"
-            >
-              {isSalvandoPerfil ? "Salvando..." : "Salvar perfil"}
-            </Botao>
-          </div>
-        </form>
-      </ProfileModal>
-
-      <ProfileModal
+      <ModalEntregasLoja
+        descricao={descricaoModalEntregas}
+        entregaEmEdicao={entregaEmEdicao}
+        entregaErroAcao={entregaErroAcao}
+        entregaLojaForm={entregaLojaForm}
+        entregaRemovendoId={entregaRemovendoId}
+        entregasLoja={entregasLoja}
+        handleCancelarEntrega={handleCancelarEntrega}
+        handleEditarEntrega={handleEditarEntrega}
+        handleNovaEntrega={handleNovaEntrega}
+        handleRemoverEntregaLoja={(opcao) => {
+          void handleRemoverEntregaLoja(opcao);
+        }}
+        isCarregandoEntregas={isCarregandoEntregas}
         isOpen={modalAberto === "entregas"}
-        title={tituloModalEntregas}
-        description={descricaoModalEntregas}
+        isSalvandoEntrega={isSalvandoEntrega}
+        onChangeEntregaInput={handleEntregaInputChange}
         onClose={fecharModal}
-      >
-        <div className="space-y-5">
-          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-white">Entregas cadastradas</h3>
-                <p className="text-sm text-neutral-400">
-                  Edite as modalidades da sua loja ou crie uma nova opcao de frete.
-                </p>
-              </div>
+        onSubmit={handleSalvarEntregaLoja}
+        onToggleEntregaAtiva={handleEntregaAtivaChange}
+        tipoEntregaAtualEhRetirada={tipoEntregaAtualEhRetirada}
+        titulo={tituloModalEntregas}
+      />
 
-              <Botao
-                type="button"
-                variant="secondary"
-                onClick={handleNovaEntrega}
-                className="h-11 sm:w-auto sm:px-5"
-                icon={<Plus className="h-4 w-4" />}
-              >
-                Nova opcao
-              </Botao>
-            </div>
-
-            {isCarregandoEntregas ? (
-              <ProfileSkeleton lines={3} cardCount={2} />
-            ) : entregasLoja.length > 0 ? (
-              <div className="space-y-3">
-                {entregasLoja.map((opcao) => {
-                  const estaEditando = entregaLojaForm.id === opcao.id;
-                  const estaRemovendo = entregaRemovendoId === opcao.id;
-
-                  return (
-                    <div
-                      key={opcao.id}
-                      className={`rounded-2xl border p-4 transition ${
-                        estaEditando
-                          ? "border-yellow-400/40 bg-yellow-400/10"
-                          : "border-white/10 bg-black/40"
-                      }`.trim()}
-                    >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center gap-2 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-yellow-300">
-                              <Truck className="h-3.5 w-3.5" />
-                              {obterTipoEntregaLabel(opcao.tipoEntregaId)}
-                            </span>
-
-                            <span
-                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${
-                                opcao.ativa
-                                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                                  : "border-white/10 bg-white/5 text-neutral-400"
-                              }`.trim()}
-                            >
-                              {opcao.ativa ? "Ativa" : "Pausada"}
-                            </span>
-                          </div>
-
-                          <div>
-                            <p className="text-base font-semibold text-white">{opcao.nome}</p>
-                            <p className="text-sm text-neutral-400">{opcao.resumoCobertura}</p>
-                          </div>
-
-                          {opcao.observacao?.trim() ? (
-                            <p className="text-sm text-neutral-500">{opcao.observacao}</p>
-                          ) : null}
-                        </div>
-
-                        <div className="flex flex-col gap-3 sm:items-end">
-                          <div className="text-sm text-neutral-300">
-                            <span className="font-medium text-white">{formatarMoeda(opcao.valorFrete)}</span>
-                            {" · "}
-                            prazo de {opcao.prazoEntregaDias} dia(s)
-                          </div>
-
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleEditarEntrega(opcao)}
-                              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-                            >
-                              Editar
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleRemoverEntregaLoja(opcao);
-                              }}
-                              disabled={estaRemovendo}
-                              className="rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200 transition hover:border-red-400/40 hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {estaRemovendo ? "Removendo..." : "Excluir"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
-                Nenhuma opcao de entrega foi cadastrada ainda. Use o formulario abaixo para criar a primeira.
-              </div>
-            )}
-          </section>
-
-          <form className="space-y-5" onSubmit={handleSalvarEntregaLoja}>
-            <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-white">
-                    {entregaEmEdicao ? "Editar opcao de entrega" : "Nova opcao de entrega"}
-                  </h3>
-                  <p className="text-sm text-neutral-400">
-                    Defina a modalidade, o frete e o prazo exibidos no checkout da loja.
-                  </p>
-                </div>
-
-                {entregaEmEdicao ? (
-                  <Botao
-                    type="button"
-                    variant="secondary"
-                    onClick={handleCancelarEntrega}
-                    className="h-11 sm:w-auto sm:px-5"
-                  >
-                    Nova opcao
-                  </Botao>
-                ) : null}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="tipoEntregaId" className="text-[#6b6b6b]">
-                    Tipo de entrega
-                  </label>
-                  <select
-                    id="tipoEntregaId"
-                    name="tipoEntregaId"
-                    value={entregaLojaForm.tipoEntregaId}
-                    onChange={handleEntregaInputChange}
-                    className="w-full rounded-xl border border-[#6B6B6B] bg-black p-2 text-white outline-none transition focus:border-yellow-400"
-                  >
-                    {TIPOS_ENTREGA_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <Input
-                  label="Nome exibido"
-                  id="entregaNome"
-                  name="nome"
-                  placeholder="Entrega expressa"
-                  value={entregaLojaForm.nome}
-                  onChange={handleEntregaInputChange}
-                  required
-                />
-
-                <Input
-                  label="Valor do frete"
-                  id="entregaValorFrete"
-                  name="valorFrete"
-                  placeholder="12,90"
-                  value={entregaLojaForm.valorFrete}
-                  onChange={handleEntregaInputChange}
-                  disabled={tipoEntregaAtualEhRetirada}
-                  required
-                />
-
-                <Input
-                  label="Prazo em dias"
-                  id="entregaPrazoEntregaDias"
-                  name="prazoEntregaDias"
-                  type="number"
-                  min="0"
-                  max="365"
-                  value={entregaLojaForm.prazoEntregaDias}
-                  onChange={handleEntregaInputChange}
-                  required
-                />
-              </div>
-
-              {tipoEntregaAtualEhRetirada ? (
-                <p className="text-xs text-neutral-500">
-                  A modalidade Retirada usa frete zero automaticamente.
-                </p>
-              ) : null}
-
-              <div className="space-y-2">
-                <label htmlFor="entregaObservacao" className="text-[#6b6b6b]">
-                  Observacao
-                </label>
-                <textarea
-                  id="entregaObservacao"
-                  name="observacao"
-                  rows={3}
-                  value={entregaLojaForm.observacao}
-                  onChange={handleEntregaInputChange}
-                  placeholder="Ex.: Entregas para a capital em horario comercial."
-                  className="w-full rounded-xl border border-[#6B6B6B] bg-black p-3 text-white placeholder-[#6b6b6b] outline-none transition focus:border-yellow-400"
-                />
-              </div>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-200">
-                <input
-                  type="checkbox"
-                  checked={entregaLojaForm.ativa}
-                  onChange={handleEntregaAtivaChange}
-                  className="h-4 w-4 cursor-pointer accent-yellow-500"
-                />
-                Opcao ativa no checkout da loja
-              </label>
-            </section>
-
-            {entregaErroAcao ? <p className="text-sm text-red-400">{entregaErroAcao}</p> : null}
-
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <Botao
-                type="button"
-                variant="secondary"
-                onClick={fecharModal}
-                className="h-11 sm:w-auto sm:px-6"
-              >
-                Fechar
-              </Botao>
-
-              <Botao
-                type="submit"
-                disabled={isSalvandoEntrega}
-                className="h-11 sm:w-auto sm:px-6"
-                icon={<PackageCheck className="h-4 w-4" />}
-              >
-                {isSalvandoEntrega
-                  ? "Salvando..."
-                  : entregaEmEdicao
-                    ? "Salvar entrega"
-                    : "Criar entrega"}
-              </Botao>
-            </div>
-          </form>
-        </div>
-      </ProfileModal>
-
-      <ProfileModal
+      <ModalProdutoLoja
+        descricao={descricaoModalProduto}
         isOpen={modalAberto === "produto"}
-        title={tituloModalProduto}
-        description={descricaoModalProduto}
+        isProcessandoProduto={isProcessandoProduto}
+        isRemovendoProduto={isRemovendoProduto}
+        isSalvandoProduto={isSalvandoProduto}
+        onChangeProdutoInput={handleProdutoInputChange}
         onClose={fecharModal}
-      >
-        <form className="space-y-5" onSubmit={handleSalvarProduto}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Nome do produto"
-              id="produtoNome"
-              name="nome"
-              placeholder="Mouse Gamer RGB"
-              value={produtoForm.nome}
-              onChange={handleProdutoInputChange}
-              required
-            />
+        onConfirmarRemocaoProdutoAtual={() => void handleRemoverProdutoAtual()}
+        onRemoverImagemProduto={handleRemoverImagemProduto}
+        onSelecionarImagemProduto={handleProdutoImagemSelecionada}
+        onSolicitarRemocaoProdutoAtual={handleSolicitarRemocaoProdutoAtual}
+        onSubmit={handleSalvarProduto}
+        onToggleProdutoDisponivel={handleProdutoDisponivelChange}
+        produtoConfirmandoExclusao={produtoConfirmandoExclusao}
+        produtoErroAcao={produtoErroAcao}
+        produtoForm={produtoForm}
+        titulo={tituloModalProduto}
+        voltarConfirmacaoExclusao={() => setProdutoConfirmandoExclusao(false)}
+      />
 
-            <Input
-              label="Categoria"
-              id="produtoCategoria"
-              name="categoria"
-              placeholder="Perifericos"
-              value={produtoForm.categoria}
-              onChange={handleProdutoInputChange}
-              required
-            />
-
-            <Input
-              label="Preco"
-              id="produtoPreco"
-              name="preco"
-              placeholder="100,99"
-              value={produtoForm.preco}
-              onChange={handleProdutoInputChange}
-              required
-            />
-
-            <Input
-              label="Estoque"
-              id="produtoEstoque"
-              name="estoque"
-              type="number"
-              min="0"
-              placeholder="10"
-              value={produtoForm.estoque}
-              onChange={handleProdutoInputChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-white">Imagem principal</p>
-                <p className="text-xs text-neutral-400">
-                  Envie uma foto do produto em PNG, JPG ou WebP com ate 2 MB.
-                </p>
-              </div>
-
-              {produtoForm.imagemUrl ? (
-                <button
-                  type="button"
-                  onClick={handleRemoverImagemProduto}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300 transition hover:border-red-400/40 hover:bg-red-400/20"
-                  aria-label="Remover imagem do produto"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              ) : null}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
-              <div className="flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                {produtoForm.imagemUrl ? (
-                  <img
-                    src={produtoForm.imagemUrl}
-                    alt={`Preview do produto ${produtoForm.nome || "selecionado"}`}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="px-4 text-center text-xs uppercase tracking-[0.22em] text-neutral-500">
-                    Sem imagem
-                  </span>
-                )}
-              </div>
-
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-yellow-400/30 bg-yellow-400/10 px-4 py-6 text-center text-sm text-yellow-100 transition hover:border-yellow-400/50 hover:bg-yellow-400/15">
-                <ImagePlus className="h-6 w-6" />
-                <div className="space-y-1">
-                  <p className="font-medium text-white">Selecionar foto do produto</p>
-                  <p className="text-xs text-neutral-300">
-                    O arquivo escolhido ja sera usado no cadastro.
-                  </p>
-                </div>
-
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleProdutoImagemSelecionada}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="produtoDescricao" className="text-[#6b6b6b]">
-              Descricao
-            </label>
-            <textarea
-              id="produtoDescricao"
-              name="descricao"
-              value={produtoForm.descricao}
-              onChange={handleProdutoInputChange}
-              placeholder="Descreva o produto para destacar os principais diferenciais."
-              rows={4}
-              className="w-full rounded-xl border border-[#6B6B6B] bg-black p-3 text-white outline-none transition focus:border-yellow-400"
-            />
-          </div>
-
-          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-200">
-            <input
-              type="checkbox"
-              checked={produtoForm.disponivel}
-              onChange={handleProdutoDisponivelChange}
-              className="h-4 w-4 cursor-pointer accent-yellow-500"
-            />
-            Produto disponivel para venda
-          </label>
-
-          {produtoErroAcao ? <p className="text-sm text-red-400">{produtoErroAcao}</p> : null}
-
-          {produtoForm.id && produtoConfirmandoExclusao ? (
-            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
-              <p className="font-medium text-red-200">Confirmar exclusao do produto</p>
-              <p className="mt-2">
-                O produto "{produtoForm.nome.trim() || "selecionado"}" deixara de aparecer para os
-                usuarios, mas continuara salvo no banco.
-              </p>
-            </div>
-          ) : null}
-
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Botao
-                type="button"
-                variant="secondary"
-                onClick={fecharModal}
-                className="h-11 sm:w-auto sm:px-6"
-              >
-                Cancelar
-              </Botao>
-
-              {produtoForm.id ? (
-                produtoConfirmandoExclusao ? (
-                  <>
-                    <Botao
-                      type="button"
-                      variant="secondary"
-                      disabled={isProcessandoProduto}
-                      onClick={() => setProdutoConfirmandoExclusao(false)}
-                      className="h-11 sm:w-auto sm:px-6"
-                    >
-                      Voltar
-                    </Botao>
-
-                    <Botao
-                      type="button"
-                      disabled={isProcessandoProduto}
-                      onClick={() => void handleRemoverProdutoAtual()}
-                      className="h-11 border-red-400/20 bg-red-500/80 text-white hover:bg-red-500 sm:w-auto sm:px-6"
-                      icon={<Trash2 className="h-4 w-4" />}
-                    >
-                      {isRemovendoProduto ? "Excluindo..." : "Confirmar exclusao"}
-                    </Botao>
-                  </>
-                ) : (
-                  <Botao
-                    type="button"
-                    variant="secondary"
-                    disabled={isProcessandoProduto}
-                    onClick={handleSolicitarRemocaoProdutoAtual}
-                    className="h-11 border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/20 sm:w-auto sm:px-6"
-                    icon={<Trash2 className="h-4 w-4" />}
-                  >
-                    Excluir produto
-                  </Botao>
-                )
-              ) : null}
-            </div>
-
-            {!produtoConfirmandoExclusao ? (
-              <Botao
-                type="submit"
-                disabled={isProcessandoProduto}
-                className="h-11 sm:w-auto sm:px-6"
-              >
-                {isSalvandoProduto
-                  ? "Salvando..."
-                  : produtoForm.id
-                    ? "Salvar produto"
-                    : "Criar produto"}
-              </Botao>
-            ) : null}
-          </div>
-        </form>
-      </ProfileModal>
-
-      <ProfileModal
+      <ModalLojaPerfil
+        descricao="Use seus dados principais de endereco e telefone para liberar a loja rapidamente."
         isOpen={modalAberto === "loja"}
-        title={temLoja ? "Editar loja" : "Criar loja"}
-        description="Use seus dados principais de endereco e telefone para liberar a loja rapidamente."
+        isSalvandoLoja={isSalvandoLoja}
+        lojaErroAcao={lojaErroAcao}
+        lojaForm={lojaForm}
+        onChangeLojaInput={handleLojaInputChange}
         onClose={fecharModal}
-      >
-        <form className="space-y-5" onSubmit={handleSalvarLoja}>
-          <div className="grid gap-4 sm:grid-cols-1">
-            <Input
-              label="Nome fantasia"
-              id="nomeFantasia"
-              name="nomeFantasia"
-              placeholder="Nome da sua loja"
-              value={lojaForm.nomeFantasia}
-              onChange={handleLojaInputChange}
-              icon={<Store className="h-5 w-5" />}
-              required
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="tipoDocumentoFiscal" className="text-[#6b6b6b]">
-                Tipo do documento
-              </label>
-              <select
-                id="tipoDocumentoFiscal"
-                name="tipoDocumentoFiscal"
-                value={lojaForm.tipoDocumentoFiscal}
-                onChange={handleLojaInputChange}
-                className="w-full rounded-xl border border-[#6B6B6B] bg-black p-2 text-white outline-none transition focus:border-yellow-400"
-              >
-                <option value="1">CPF</option>
-                <option value="2">CNPJ</option>
-              </select>
-            </div>
-
-            <Input
-              label="Documento fiscal"
-              id="documentoFiscal"
-              name="documentoFiscal"
-              placeholder={lojaForm.tipoDocumentoFiscal === "2" ? "00.000.000/0000-00" : "000.000.000-00"}
-              value={lojaForm.documentoFiscal}
-              onChange={handleLojaInputChange}
-              required
-            />
-          </div>
-
-          <Input
-            label="Email de contato"
-            id="emailContato"
-            name="emailContato"
-            type="email"
-            placeholder="loja@exemplo.com"
-            value={lojaForm.emailContato}
-            onChange={handleLojaInputChange}
-          />
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="descricao" className="text-[#6b6b6b]">
-              Descricao
-            </label>
-            <textarea
-              id="descricao"
-              name="descricao"
-              rows={4}
-              placeholder="Conte um pouco sobre a sua loja."
-              value={lojaForm.descricao}
-              onChange={handleLojaInputChange}
-              className="w-full rounded-xl border border-[#6B6B6B] bg-black p-3 text-white placeholder-[#6b6b6b] outline-none transition focus:border-yellow-400"
-            />
-          </div>
-
-          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-200">
-            <input
-              type="checkbox"
-              checked={lojaForm.ativa}
-              onChange={handleLojaAtivaChange}
-              className="h-4 w-4 cursor-pointer accent-yellow-500"
-            />
-            Loja ativa para receber publicacoes e vendas
-          </label>
-
-          <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm text-yellow-100">
-            O cadastro usa o endereco e o telefone principal do seu perfil atual.
-          </div>
-
-          {lojaErroAcao ? <p className="text-sm text-red-400">{lojaErroAcao}</p> : null}
-
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Botao
-              type="button"
-              variant="secondary"
-              onClick={fecharModal}
-              className="h-11 sm:w-auto sm:px-6"
-            >
-              Cancelar
-            </Botao>
-
-            <Botao
-              type="submit"
-              disabled={isSalvandoLoja}
-              className="h-11 sm:w-auto sm:px-6"
-            >
-              {isSalvandoLoja
-                ? "Salvando..."
-                : temLoja
-                  ? "Salvar loja"
-                  : "Criar loja"}
-            </Botao>
-          </div>
-        </form>
-      </ProfileModal>
+        onSubmit={handleSalvarLoja}
+        onToggleLojaAtiva={handleLojaAtivaChange}
+        temLoja={temLoja}
+        titulo={temLoja ? "Editar loja" : "Criar loja"}
+      />
     </PageLayout>
   );
 }

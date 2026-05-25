@@ -28,7 +28,7 @@ type ModalEntregasLojaProps = {
   onChangeEntregaInput: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onToggleEntregaAtiva: () => void;
+  onToggleEntregaAtiva: (event: ChangeEvent<HTMLInputElement>) => void;
   tipoEntregaAtualEhRetirada: boolean;
   titulo: string;
 };

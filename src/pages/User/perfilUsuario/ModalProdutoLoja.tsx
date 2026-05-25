@@ -18,7 +18,7 @@ type ModalProdutoLojaProps = {
   onSelecionarImagemProduto: (event: ChangeEvent<HTMLInputElement>) => void;
   onSolicitarRemocaoProdutoAtual: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onToggleProdutoDisponivel: () => void;
+  onToggleProdutoDisponivel: (event: ChangeEvent<HTMLInputElement>) => void;
   produtoConfirmandoExclusao: boolean;
   produtoErroAcao: string;
   produtoForm: ProdutoFormState;
