@@ -97,7 +97,65 @@ export function SecaoProdutosLoja({
 
       {categoriasDaLoja.length > 0 ? (
         <>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onSelecionarCategoria("todas")}
+                className={`rounded-full border px-3 py-2 text-sm transition ${
+                  categoriaLojaAtiva === "todas"
+                    ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
+                    : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
+                }`.trim()}
+              >
+                Todas
+              </button>
+
+              {categoriasDaLoja.map((categoria) => {
+                const categoriaAtiva = categoriaLojaAtiva === categoria.id;
+                const categoriaRemovendo = categoriaLojaRemovendoId === categoria.id;
+
+                return (
+                  <div
+                    key={categoria.id}
+                    className={`flex items-center overflow-hidden rounded-full border transition ${
+                      categoriaAtiva
+                        ? "border-yellow-400/40 bg-yellow-400/10"
+                        : "border-white/10 bg-black"
+                    }`.trim()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelecionarCategoria(categoria.id)}
+                      className={`px-3 py-2 text-sm transition ${
+                        categoriaAtiva ? "text-yellow-300" : "text-neutral-400 hover:text-white"
+                      }`.trim()}
+                    >
+                      {categoria.nome}{" "}
+                      <span className="text-xs text-neutral-500">({categoria.totalProdutos})</span>
+                    </button>
+
+                    {categoriaLojaModoExclusao ? (
+                      <button
+                        type="button"
+                        onClick={() => onSolicitarRemocaoCategoriaLoja(categoria)}
+                        disabled={categoriaRemovendo}
+                        className={`border-l px-3 py-2 transition ${
+                          categoriaAtiva
+                            ? "border-yellow-400/20 text-red-200 hover:bg-red-400/15"
+                            : "border-white/10 text-red-300 hover:bg-red-400/10"
+                        } ${categoriaRemovendo ? "cursor-not-allowed opacity-60" : ""}`.trim()}
+                        aria-label={`Selecionar exclusao da categoria ${categoria.nome}`}
+                        title={`Selecionar exclusao da categoria ${categoria.nome}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={
@@ -127,64 +185,6 @@ export function SecaoProdutosLoja({
                 <Trash2 className="h-5 w-5" />
               )}
             </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onSelecionarCategoria("todas")}
-              className={`rounded-full border px-3 py-2 text-sm transition ${
-                categoriaLojaAtiva === "todas"
-                  ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
-                  : "border-white/10 bg-black text-neutral-400 hover:border-white/20 hover:text-white"
-              }`.trim()}
-            >
-              Todas
-            </button>
-
-            {categoriasDaLoja.map((categoria) => {
-              const categoriaAtiva = categoriaLojaAtiva === categoria.id;
-              const categoriaRemovendo = categoriaLojaRemovendoId === categoria.id;
-
-              return (
-                <div
-                  key={categoria.id}
-                  className={`flex items-center overflow-hidden rounded-full border transition ${
-                    categoriaAtiva
-                      ? "border-yellow-400/40 bg-yellow-400/10"
-                      : "border-white/10 bg-black"
-                  }`.trim()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onSelecionarCategoria(categoria.id)}
-                    className={`px-3 py-2 text-sm transition ${
-                      categoriaAtiva ? "text-yellow-300" : "text-neutral-400 hover:text-white"
-                    }`.trim()}
-                  >
-                    {categoria.nome}{" "}
-                    <span className="text-xs text-neutral-500">({categoria.totalProdutos})</span>
-                  </button>
-
-                  {categoriaLojaModoExclusao ? (
-                    <button
-                      type="button"
-                      onClick={() => onSolicitarRemocaoCategoriaLoja(categoria)}
-                      disabled={categoriaRemovendo}
-                      className={`border-l px-3 py-2 transition ${
-                        categoriaAtiva
-                          ? "border-yellow-400/20 text-red-200 hover:bg-red-400/15"
-                          : "border-white/10 text-red-300 hover:bg-red-400/10"
-                      } ${categoriaRemovendo ? "cursor-not-allowed opacity-60" : ""}`.trim()}
-                      aria-label={`Selecionar exclusao da categoria ${categoria.nome}`}
-                      title={`Selecionar exclusao da categoria ${categoria.nome}`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
           </div>
         </>
       ) : (
