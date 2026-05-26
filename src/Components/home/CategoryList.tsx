@@ -53,21 +53,23 @@ export function CategoryList({
               key={categoria.id}
               type="button"
               onClick={() => onSelect(categoria.id)}
-              className={`flex min-w-[140px] items-center gap-3 rounded-[24px] border px-4 py-4 text-left transition ${
+              className={`flex min-w-[140px] max-w-[240px] shrink-0 items-center gap-3 rounded-[24px] border px-4 py-4 text-left transition sm:max-w-none ${
                 isAtiva
                   ? "border-yellow-400/50 bg-yellow-400/10 text-yellow-300"
                   : "border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
               }`}
             >
               <span
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
                   isAtiva ? "bg-yellow-400/15" : "bg-black/40"
                 }`}
               >
                 <Icone className="h-5 w-5" />
               </span>
 
-              <span className="text-sm font-medium">{categoria.nome}</span>
+              <span className="min-w-0 whitespace-normal break-words text-sm font-medium leading-tight">
+                {categoria.nome}
+              </span>
             </button>
           );
         })}
