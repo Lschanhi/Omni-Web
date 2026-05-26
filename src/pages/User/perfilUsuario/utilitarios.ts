@@ -105,9 +105,9 @@ export const METADADOS_ABAS: Record<PerfilTabId, Omit<PerfilTabContent, "itens">
   },
   vendas: {
     titulo: "Desempenho de vendas",
-    descricao: "Resumo dos itens que mais convertem receita na sua loja.",
+    descricao: "Acompanhe o fluxo de status das vendas e os itens que mais convertem receita.",
     vazioTitulo: "Nenhuma venda encontrada",
-    vazioDescricao: "Assim que a loja tiver historico, os dados aparecerao aqui.",
+    vazioDescricao: "Assim que a loja tiver historico, os totais por status e os produtos vendidos aparecerao aqui.",
   },
   compras: {
     titulo: "Historico de compras",
