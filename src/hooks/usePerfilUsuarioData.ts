@@ -3,6 +3,7 @@ import type {
   PerfilGridItem,
   PerfilPageState,
   PerfilTabId,
+  PerfilVendaStatusItem,
   UsuarioEnderecoPerfil,
   UsuarioPerfil,
   UsuarioTelefonePerfil,
@@ -59,12 +60,46 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeStyle: "short",
 });
 
+const FLUXO_VENDAS_BASE: PerfilVendaStatusItem[] = [
+  {
+    key: "em-separacao",
+    label: "Em separacao",
+    total: 0,
+    descricao: "Pedidos pagos que entraram na fila operacional da loja.",
+  },
+  {
+    key: "pronto",
+    label: "Pronto",
+    total: 0,
+    descricao: "Itens separados e liberados para expedicao ou retirada.",
+  },
+  {
+    key: "enviado",
+    label: "Enviado",
+    total: 0,
+    descricao: "Pedidos que ja sairam da loja e estao em transporte.",
+  },
+  {
+    key: "finalizado",
+    label: "Finalizado",
+    total: 0,
+    descricao: "Vendas concluidas com entrega ou recebimento confirmado.",
+  },
+];
+
 function formatarEndereco(endereco: UsuarioPerfilApiResponse["enderecos"][number] | undefined) {
   if (!endereco) {
     return "";
   }
 
   return `${endereco.tipoLogradouro} ${endereco.nomeEndereco}, ${endereco.numero} - ${endereco.cidade}/${endereco.uf}`;
+}
+
+function normalizarTextoBase(valor: string) {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function mapearTelefones(perfil: UsuarioPerfilApiResponse): UsuarioTelefonePerfil[] {
@@ -169,6 +204,86 @@ function combinarProdutos(base: HomeProduct[], extras: Array<HomeProduct | null>
   return Array.from(produtosPorId.values());
 }
 
+function resolverChaveFluxoVenda(status: string) {
+  const statusNormalizado = normalizarTextoBase(status.trim());
+
+  if (!statusNormalizado) {
+    return null;
+  }
+
+  if (
+    [
+      "pago",
+      "pagamento confirmado",
+      "confirmado",
+      "em separacao",
+      "separacao",
+      "separando",
+      "processando",
+      "em preparo",
+    ].includes(statusNormalizado)
+  ) {
+    return "em-separacao" as const;
+  }
+
+  if (
+    [
+      "pronto",
+      "pronto para envio",
+      "pronto para retirada",
+      "embalado",
+    ].includes(statusNormalizado)
+  ) {
+    return "pronto" as const;
+  }
+
+  if (
+    [
+      "enviado",
+      "em transito",
+      "saiu para entrega",
+      "transportando",
+      "despachado",
+    ].includes(statusNormalizado)
+  ) {
+    return "enviado" as const;
+  }
+
+  if (
+    [
+      "finalizado",
+      "entregue",
+      "concluido",
+      "recebido",
+      "retirado",
+    ].includes(statusNormalizado)
+  ) {
+    return "finalizado" as const;
+  }
+
+  return null;
+}
+
+function criarFluxoStatusVendas(metricas: LojaMetricasApiResponse | null): PerfilVendaStatusItem[] {
+  const fluxo = FLUXO_VENDAS_BASE.map((item) => ({ ...item }));
+
+  metricas?.pedidosPorStatus.forEach((itemStatus) => {
+    const chave = resolverChaveFluxoVenda(itemStatus.status);
+
+    if (!chave) {
+      return;
+    }
+
+    const etapa = fluxo.find((item) => item.key === chave);
+
+    if (etapa) {
+      etapa.total += itemStatus.total;
+    }
+  });
+
+  return fluxo;
+}
+
 function formatarDataPedido(dataPedido: string) {
   const data = new Date(dataPedido);
 
@@ -265,18 +380,30 @@ function mapearCompras(
   });
 }
 
-function mapearVendas(metricas: LojaMetricasApiResponse | null): PerfilGridItem[] {
+function mapearVendas(
+  metricas: LojaMetricasApiResponse | null,
+  produtos: HomeProduct[],
+): PerfilGridItem[] {
   if (!metricas) {
     return [];
   }
 
-  return metricas.produtosMaisVendidosPorReceita.map((produto) => ({
-    id: `venda-${produto.produtoId}`,
-    titulo: produto.nome,
-    subtitulo: `${produto.quantidadeVendida} unidades vendidas`,
-    valor: currencyFormatter.format(Number(produto.receitaBruta)),
-    badge: "Receita",
-  }));
+  const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
+
+  return metricas.produtosMaisVendidosPorReceita.map((produto) => {
+    const produtoDetalhado = produtosPorId.get(produto.produtoId);
+
+    return {
+      id: `venda-${produto.produtoId}`,
+      titulo: produto.nome,
+      subtitulo: `${produto.quantidadeVendida} unidades vendidas`,
+      valor: currencyFormatter.format(Number(produto.receitaBruta)),
+      imagemUrl: produtoDetalhado?.imagem,
+      imagens: produtoDetalhado?.imagens,
+      descricao: produtoDetalhado?.descricao ?? "",
+      badge: "Receita",
+    };
+  });
 }
 
 function mapearStats(
@@ -326,6 +453,7 @@ export function usePerfilUsuarioData() {
   const [usuario, setUsuario] = useState<UsuarioPerfil | null>(null);
   const [loja, setLoja] = useState<LojaGestaoApiResponse | null>(null);
   const [stats, setStats] = useState<UsuarioStatsData>(INITIAL_STATS);
+  const [fluxoVendas, setFluxoVendas] = useState<PerfilVendaStatusItem[]>(FLUXO_VENDAS_BASE);
   const [abaAtiva, setAbaAtiva] = useState<PerfilTabId>("produtos");
   const [tabItems, setTabItems] = useState<Record<PerfilTabId, PerfilGridItem[]>>({
     produtos: [],
@@ -376,6 +504,7 @@ export function usePerfilUsuarioData() {
         setUsuario(null);
         setLoja(null);
         setStats(INITIAL_STATS);
+        setFluxoVendas(FLUXO_VENDAS_BASE);
         setTabItems({
           produtos: [],
           vendas: [],
@@ -415,9 +544,19 @@ export function usePerfilUsuarioData() {
             pedidos.flatMap((pedido) => pedido.itens.map((item) => item.produtoId)).filter(Boolean),
           ),
         );
+        const idsProdutosMetricas = Array.from(
+          new Set(
+            metricas?.produtosMaisVendidosPorReceita
+              .map((produto) => produto.produtoId)
+              .filter(Boolean) ?? [],
+          ),
+        );
+        const idsProdutosRelacionados = Array.from(
+          new Set([...idsProdutosPedidos, ...idsProdutosMetricas]),
+        );
         const produtosPedidosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
         const produtosDetalhadosPedidos = await Promise.all(
-          idsProdutosPedidos
+          idsProdutosRelacionados
             .filter((produtoId) => !produtoTemImagemUtil(produtosPedidosPorId.get(produtoId)))
             .map((produtoId) => obterProdutoPorId(produtoId).catch(() => null)),
         );
@@ -450,7 +589,7 @@ export function usePerfilUsuarioData() {
               }))
           : [];
         const compras = mapearCompras(pedidos, produtosEnriquecidosPedidos);
-        const vendas = mapearVendas(metricas);
+        const vendas = mapearVendas(metricas, produtosEnriquecidosPedidos);
         const telefones = mapearTelefones(perfil);
         const enderecos = mapearEnderecos(perfil, enderecosDetalhados);
 
@@ -458,6 +597,7 @@ export function usePerfilUsuarioData() {
         setUsuario(mapearUsuario(perfil, telefones, enderecos));
         setLoja(lojaAtual);
         setStats(mapearStats(metricas, compras.length, produtosDaLoja.length));
+        setFluxoVendas(criarFluxoStatusVendas(metricas));
         setTabItems({
           produtos: produtosDaLoja,
           vendas,
@@ -538,6 +678,7 @@ export function usePerfilUsuarioData() {
     loja,
     temLoja: Boolean(loja),
     stats,
+    fluxoVendas,
     abaAtiva,
     tabItems,
     ...pageState,

@@ -76,6 +76,7 @@ import type {
 } from "../../types/perfil";
 import { ModalAvatarPerfil } from "./perfilUsuario/ModalAvatarPerfil";
 import { ModalEntregasLoja } from "./perfilUsuario/ModalEntregasLoja";
+import { FluxoStatusVendas } from "./perfilUsuario/FluxoStatusVendas";
 import { ModalLojaPerfil } from "./perfilUsuario/ModalLojaPerfil";
 import { ModalPedidoCompra } from "./perfilUsuario/ModalPedidoCompra";
 import { ModalPerfilUsuario } from "./perfilUsuario/ModalPerfilUsuario";
@@ -129,6 +130,7 @@ export function PerfilUsuarioPage() {
     loja,
     temLoja,
     stats,
+    fluxoVendas,
     abaAtiva,
     tabItems,
     isUsuarioLoading,
@@ -230,6 +232,7 @@ export function PerfilUsuarioPage() {
     ? (abaAtiva as PerfilTabId)
     : (abasDisponiveis[0]?.id as PerfilTabId);
   const isStoreProductsTab = visaoAtiva === "loja" && abaAtivaResolvida === "produtos";
+  const isStoreSalesTab = visaoAtiva === "loja" && abaAtivaResolvida === "vendas";
   const tabContent: PerfilTabContent = {
     ...METADADOS_ABAS[abaAtivaResolvida],
     itens: tabItems[abaAtivaResolvida],
@@ -1568,6 +1571,8 @@ export function PerfilUsuarioPage() {
                   </div>
 
                   {/* Renderiza feedback visual adequado para cada estado da listagem. */}
+                  {isStoreSalesTab ? <FluxoStatusVendas itens={fluxoVendas} /> : null}
+
                   {isConteudoLoading ? (
                     <ProfileSkeleton />
                   ) : conteudoError ? (

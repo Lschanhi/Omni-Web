@@ -77,6 +77,13 @@ export interface PerfilStatCardItem {
   value: string;
 }
 
+export interface PerfilVendaStatusItem {
+  key: "em-separacao" | "pronto" | "enviado" | "finalizado";
+  label: string;
+  total: number;
+  descricao: string;
+}
+
 export interface PerfilPedidoItem {
   id: number;
   produtoId: number;
