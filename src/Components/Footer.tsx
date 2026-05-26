@@ -14,7 +14,7 @@ export default function Footer() {
                 <img
                     src={LogoOmnimarket}
                     alt="Logo do OmniMarket"
-                    className="h-14 w-14 rounded-2xl object-cover hover:animate-spin"
+                    className="h-14 w-14 rounded-2xl object-cover hover:animate-spin hover:[animation-duration:2s]"
                 />
             
                 <h2 className="text-2xl font-bold tracking-tight text-yellow-400">
