@@ -19,6 +19,16 @@ type ProdutoApiResponse = {
   lojaId: number;
   nomeLoja: string;
   slugLoja: string;
+  imagem?: string | null;
+  Imagem?: string | null;
+  imagemUrl?: string | null;
+  ImagemUrl?: string | null;
+  imagemPrincipal?: string | null;
+  ImagemPrincipal?: string | null;
+  fotoUrl?: string | null;
+  FotoUrl?: string | null;
+  thumbUrl?: string | null;
+  thumbnailUrl?: string | null;
   avatarLojaUrl?: string | null;
   lojaAvatarUrl?: string | null;
   logoLojaUrl?: string | null;
@@ -296,8 +306,61 @@ function normalizarMidias(response: ProdutoMidiaApiResponse) {
   return itens.map(extrairUrlMidia).filter(Boolean);
 }
 
-function extrairImagensProduto(produto: Pick<ProdutoApiResponse, "imagens" | "midias">) {
+function extrairImagemPrincipalProduto(
+  produto: Pick<
+    ProdutoApiResponse,
+    | "imagem"
+    | "Imagem"
+    | "imagemUrl"
+    | "ImagemUrl"
+    | "imagemPrincipal"
+    | "ImagemPrincipal"
+    | "fotoUrl"
+    | "FotoUrl"
+    | "thumbUrl"
+    | "thumbnailUrl"
+  >,
+) {
+  const candidatos = [
+    produto.imagem,
+    produto.Imagem,
+    produto.imagemUrl,
+    produto.ImagemUrl,
+    produto.imagemPrincipal,
+    produto.ImagemPrincipal,
+    produto.fotoUrl,
+    produto.FotoUrl,
+    produto.thumbUrl,
+    produto.thumbnailUrl,
+  ];
+
+  return candidatos
+    .map((valor) => resolverUrlImagemProduto(valor))
+    .find((valor) => typeof valor === "string" && valor.trim().length > 0)
+    ?? "";
+}
+
+function extrairImagensProduto(
+  produto: Pick<
+    ProdutoApiResponse,
+    | "imagens"
+    | "midias"
+    | "imagem"
+    | "Imagem"
+    | "imagemUrl"
+    | "ImagemUrl"
+    | "imagemPrincipal"
+    | "ImagemPrincipal"
+    | "fotoUrl"
+    | "FotoUrl"
+    | "thumbUrl"
+    | "thumbnailUrl"
+  >,
+) {
+  const imagemPrincipalDeclarada = extrairImagemPrincipalProduto(produto);
+
   return combinarImagensProduto(
+    imagemPrincipalDeclarada ? [imagemPrincipalDeclarada] : [],
     normalizarImagensProduto(produto.imagens),
     normalizarMidias(produto.midias ?? []),
   );

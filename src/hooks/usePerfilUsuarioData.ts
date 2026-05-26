@@ -15,7 +15,11 @@ import {
   isAuthenticated,
   updateStoredUser,
 } from "../Services/auth/session";
-import { criarImagemPlaceholder, listarProdutos } from "../Services/produtos/produtoService";
+import {
+  criarImagemPlaceholder,
+  listarProdutos,
+  obterProdutoPorId,
+} from "../Services/produtos/produtoService";
 import { listarEnderecos } from "../Services/user/enderecoService";
 import { obterMinhaLoja, type LojaGestaoApiResponse } from "../Services/user/lojaService";
 import { formatarTelefoneParaExibicao } from "../Services/user/telefoneService";
@@ -135,6 +139,34 @@ function mapearUsuario(
     avatarUrl: perfil.avatarUrl ?? undefined,
     contaVerificada: true,
   };
+}
+
+function isImagemPlaceholder(url: string | undefined) {
+  return Boolean(url && /^data:image\/svg\+xml/i.test(url));
+}
+
+function produtoTemImagemUtil(produto: HomeProduct | undefined) {
+  if (!produto) {
+    return false;
+  }
+
+  const fontes = [produto.imagem, ...(produto.imagens ?? [])].filter(
+    (fonte): fonte is string => typeof fonte === "string" && fonte.trim().length > 0,
+  );
+
+  return fontes.some((fonte) => !isImagemPlaceholder(fonte));
+}
+
+function combinarProdutos(base: HomeProduct[], extras: Array<HomeProduct | null>) {
+  const produtosPorId = new Map(base.map((produto) => [produto.id, produto]));
+
+  extras.forEach((produto) => {
+    if (produto) {
+      produtosPorId.set(produto.id, produto);
+    }
+  });
+
+  return Array.from(produtosPorId.values());
 }
 
 function formatarDataPedido(dataPedido: string) {
@@ -378,9 +410,27 @@ export function usePerfilUsuarioData() {
           return;
         }
 
+        const idsProdutosPedidos = Array.from(
+          new Set(
+            pedidos.flatMap((pedido) => pedido.itens.map((item) => item.produtoId)).filter(Boolean),
+          ),
+        );
+        const produtosPedidosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
+        const produtosDetalhadosPedidos = await Promise.all(
+          idsProdutosPedidos
+            .filter((produtoId) => !produtoTemImagemUtil(produtosPedidosPorId.get(produtoId)))
+            .map((produtoId) => obterProdutoPorId(produtoId).catch(() => null)),
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        const produtosEnriquecidosPedidos = combinarProdutos(produtos, produtosDetalhadosPedidos);
+
         const lojaId = lojaAtual?.id ?? metricas?.lojaId;
         const produtosDaLoja = lojaId
-          ? produtos
+          ? produtosEnriquecidosPedidos
               .filter((produto) => produto.lojaId === lojaId && produto.disponivel !== false)
               .map((produto) => ({
                 id: `produto-${produto.id}`,
@@ -399,7 +449,7 @@ export function usePerfilUsuarioData() {
                 imagens: produto.imagens,
               }))
           : [];
-        const compras = mapearCompras(pedidos, produtos);
+        const compras = mapearCompras(pedidos, produtosEnriquecidosPedidos);
         const vendas = mapearVendas(metricas);
         const telefones = mapearTelefones(perfil);
         const enderecos = mapearEnderecos(perfil, enderecosDetalhados);
