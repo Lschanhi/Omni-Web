@@ -68,20 +68,25 @@ import {
   removerFotoPerfil,
 } from "../../Services/user/usuarioService";
 import type {
+  PerfilFiltroStatusVendaId,
   PerfilGridItem,
   PerfilPedidoDetalhe,
+  PerfilPedidoStatusFluxo,
   PerfilTabContent,
   PerfilTabId,
+  PerfilVendaStatusFiltroItem,
   PerfilVisaoId,
 } from "../../types/perfil";
 import { ModalAvatarPerfil } from "./perfilUsuario/ModalAvatarPerfil";
+import { DialogoCancelarPedidoVenda } from "./perfilUsuario/DialogoCancelarPedidoVenda";
 import { ModalEntregasLoja } from "./perfilUsuario/ModalEntregasLoja";
-import { FluxoStatusVendas } from "./perfilUsuario/FluxoStatusVendas";
 import { ModalLojaPerfil } from "./perfilUsuario/ModalLojaPerfil";
 import { ModalPedidoCompra } from "./perfilUsuario/ModalPedidoCompra";
+import { ModalPedidoVenda } from "./perfilUsuario/ModalPedidoVenda";
 import { ModalPerfilUsuario } from "./perfilUsuario/ModalPerfilUsuario";
 import { ModalProdutoLoja } from "./perfilUsuario/ModalProdutoLoja";
 import { SecaoProdutosLoja } from "./perfilUsuario/SecaoProdutosLoja";
+import { StatusVendasTabs } from "./perfilUsuario/StatusVendasTabs";
 import type { CategoriaLojaOption, PerfilEnderecoFormState } from "./perfilUsuario/tipos";
 import { useEstadoLocalPerfilUsuario } from "./perfilUsuario/useEstadoLocalPerfilUsuario";
 import {
@@ -123,6 +128,70 @@ import {
   telefoneTemConteudo,
 } from "./perfilUsuario/utilitarios";
 
+const ROTULO_STATUS_VENDA: Record<PerfilPedidoStatusFluxo, string> = {
+  "em-separacao": "Em separacao",
+  pronto: "Pronto",
+  enviado: "Enviado",
+  finalizado: "Finalizado",
+  cancelado: "Cancelado",
+};
+
+const PROXIMO_STATUS_VENDA: Record<PerfilPedidoStatusFluxo, PerfilPedidoStatusFluxo | null> = {
+  "em-separacao": "pronto",
+  pronto: "enviado",
+  enviado: "finalizado",
+  finalizado: null,
+  cancelado: null,
+};
+
+function criarSubtituloPedido(pedido: PerfilPedidoDetalhe) {
+  return `${pedido.status} - ${pedido.tipoEntrega}`;
+}
+
+function criarFiltrosStatusVenda(itens: PerfilGridItem[]): PerfilVendaStatusFiltroItem[] {
+  const totais = itens.reduce<Record<PerfilPedidoStatusFluxo, number>>(
+    (acumulador, item) => {
+      const statusKey = item.pedido?.statusFluxoKey ?? "em-separacao";
+
+      acumulador[statusKey] += 1;
+
+      return acumulador;
+    },
+    {
+      "em-separacao": 0,
+      pronto: 0,
+      enviado: 0,
+      finalizado: 0,
+      cancelado: 0,
+    },
+  );
+
+  return [
+    { key: "todos", label: "Todos", total: itens.length },
+    { key: "em-separacao", label: "Em separacao", total: totais["em-separacao"] },
+    { key: "pronto", label: "Pronto", total: totais.pronto },
+    { key: "enviado", label: "Enviado", total: totais.enviado },
+    { key: "finalizado", label: "Finalizado", total: totais.finalizado },
+    { key: "cancelado", label: "Cancelado", total: totais.cancelado },
+  ];
+}
+
+function atualizarCardPedidoVenda(
+  item: PerfilGridItem,
+  pedidoAtualizado: PerfilPedidoDetalhe,
+): PerfilGridItem {
+  if (item.pedido?.pedidoId !== pedidoAtualizado.pedidoId) {
+    return item;
+  }
+
+  return {
+    ...item,
+    subtitulo: criarSubtituloPedido(pedidoAtualizado),
+    descricao: pedidoAtualizado.observacao,
+    pedido: pedidoAtualizado,
+  };
+}
+
 export function PerfilUsuarioPage() {
   // Consome toda a logica do perfil em um hook separado da interface.
   const {
@@ -130,7 +199,6 @@ export function PerfilUsuarioPage() {
     loja,
     temLoja,
     stats,
-    fluxoVendas,
     abaAtiva,
     tabItems,
     isUsuarioLoading,
@@ -233,15 +301,32 @@ export function PerfilUsuarioPage() {
     : (abasDisponiveis[0]?.id as PerfilTabId);
   const isStoreProductsTab = visaoAtiva === "loja" && abaAtivaResolvida === "produtos";
   const isStoreSalesTab = visaoAtiva === "loja" && abaAtivaResolvida === "vendas";
+  const [pedidoSelecionado, setPedidoSelecionado] = useState<PerfilPedidoDetalhe | null>(null);
+  const [pedidosVendaLocais, setPedidosVendaLocais] = useState<PerfilGridItem[]>([]);
+  const [filtroStatusVendaAtivo, setFiltroStatusVendaAtivo] =
+    useState<PerfilFiltroStatusVendaId>("todos");
+  const [isDialogoCancelamentoVendaAberto, setIsDialogoCancelamentoVendaAberto] = useState(false);
+  const [motivoCancelamentoVenda, setMotivoCancelamentoVenda] = useState("");
+  const isBuyerOrdersTab = visaoAtiva === "comprador" && abaAtivaResolvida === "compras";
   const tabContent: PerfilTabContent = {
     ...METADADOS_ABAS[abaAtivaResolvida],
     itens: tabItems[abaAtivaResolvida],
   };
+  const filtrosStatusVenda = criarFiltrosStatusVenda(pedidosVendaLocais);
   const itensExibidos =
     isStoreProductsTab && categoriaLojaAtiva !== "todas"
       ? tabContent.itens.filter((item) => item.categoriaId === categoriaLojaAtiva)
-      : tabContent.itens;
+      : isStoreSalesTab
+        ? pedidosVendaLocais.filter((item) => {
+            if (filtroStatusVendaAtivo === "todos") {
+              return true;
+            }
+
+            return item.pedido?.statusFluxoKey === filtroStatusVendaAtivo;
+          })
+        : tabContent.itens;
   const estaFiltrandoCategoria = isStoreProductsTab && categoriaLojaAtiva !== "todas";
+  const estaFiltrandoStatusVenda = isStoreSalesTab && filtroStatusVendaAtivo !== "todos";
   const cardAtivo =
     visaoAtiva === "loja"
       ? criarCardLoja(loja, usuario, avatarLojaUrl)
@@ -276,8 +361,6 @@ export function PerfilUsuarioPage() {
   const tituloModalEntregas = "Opcoes de entrega";
   const descricaoModalEntregas =
     "Cadastre, ajuste ou remova as opcoes de entrega e os valores de frete da sua loja.";
-  const [pedidoSelecionado, setPedidoSelecionado] = useState<PerfilPedidoDetalhe | null>(null);
-  const isBuyerOrdersTab = visaoAtiva === "comprador" && abaAtivaResolvida === "compras";
 
   useEffect(() => {
     if (!temLoja && visaoAtiva === "loja") {
@@ -290,6 +373,18 @@ export function PerfilUsuarioPage() {
       setAbaAtiva(abasDisponiveis[0]?.id as PerfilTabId);
     }
   }, [abaAtiva, abasDisponiveis, setAbaAtiva]);
+
+  useEffect(() => {
+    setPedidosVendaLocais(tabItems.vendas);
+  }, [tabItems.vendas]);
+
+  useEffect(() => {
+    if (!isStoreSalesTab) {
+      setFiltroStatusVendaAtivo("todos");
+      setIsDialogoCancelamentoVendaAberto(false);
+      setMotivoCancelamentoVenda("");
+    }
+  }, [isStoreSalesTab]);
 
   useEffect(() => {
     if (!isStoreProductsTab) {
@@ -321,6 +416,20 @@ export function PerfilUsuarioPage() {
   }, [loja]);
 
   useEffect(() => {
+    if (pedidoSelecionado?.contexto !== "venda") {
+      return;
+    }
+
+    const pedidoAtualizado = pedidosVendaLocais.find(
+      (item) => item.pedido?.pedidoId === pedidoSelecionado.pedidoId,
+    )?.pedido;
+
+    if (pedidoAtualizado) {
+      setPedidoSelecionado(pedidoAtualizado);
+    }
+  }, [pedidoSelecionado, pedidosVendaLocais]);
+
+  useEffect(() => {
     if (!usuario) {
       return;
     }
@@ -350,6 +459,8 @@ export function PerfilUsuarioPage() {
   }, [usuario]);
 
   function fecharModal() {
+    setIsDialogoCancelamentoVendaAberto(false);
+    setMotivoCancelamentoVenda("");
     setPedidoSelecionado(null);
     fecharModalLocal();
   }
@@ -436,7 +547,7 @@ export function PerfilUsuarioPage() {
     setModalAberto("produto");
   }
 
-  function abrirModalPedido(item: PerfilGridItem) {
+  function abrirModalPedidoCompra(item: PerfilGridItem) {
     if (!item.pedido) {
       return;
     }
@@ -445,21 +556,85 @@ export function PerfilUsuarioPage() {
     setModalAberto("pedido");
   }
 
+  function abrirModalPedidoVenda(item: PerfilGridItem) {
+    if (!item.pedido) {
+      return;
+    }
+
+    setPedidoSelecionado(item.pedido);
+    setIsDialogoCancelamentoVendaAberto(false);
+    setMotivoCancelamentoVenda(item.pedido.motivoCancelamento ?? "");
+    setModalAberto("pedido");
+  }
+
+  function sincronizarPedidoVendaLocal(pedidoAtualizado: PerfilPedidoDetalhe) {
+    setPedidosVendaLocais((pedidosAtuais) =>
+      pedidosAtuais.map((item) => atualizarCardPedidoVenda(item, pedidoAtualizado)),
+    );
+    setPedidoSelecionado(pedidoAtualizado);
+  }
+
   function handleConfirmarRecebimentoPedido(pedido: PerfilPedidoDetalhe) {
     toast.success(
       `Pedido #${pedido.pedidoId}: fluxo de recebimento pronto na interface. Falta integrar esta acao na API.`,
     );
   }
 
-  function handleSolicitarCancelamentoPedido(pedido: PerfilPedidoDetalhe) {
-    toast(
-      `Pedido #${pedido.pedidoId}: opcao de cancelamento aberta. Ainda falta um endpoint para registrar essa solicitacao.`,
-    );
-  }
-
   function handleSolicitarTrocaPedido(pedido: PerfilPedidoDetalhe) {
     toast(
       `Pedido #${pedido.pedidoId}: opcao de troca aberta. Ainda falta um endpoint para registrar essa solicitacao.`,
+    );
+  }
+
+  function handleAvancarStatusPedidoVenda(pedido: PerfilPedidoDetalhe) {
+    const proximoStatus = PROXIMO_STATUS_VENDA[pedido.statusFluxoKey];
+
+    if (!proximoStatus) {
+      return;
+    }
+
+    const pedidoAtualizado: PerfilPedidoDetalhe = {
+      ...pedido,
+      statusFluxoKey: proximoStatus,
+      status: ROTULO_STATUS_VENDA[proximoStatus],
+    };
+
+    sincronizarPedidoVendaLocal(pedidoAtualizado);
+    toast.success(
+      `Pedido #${pedido.pedidoId} movido para ${ROTULO_STATUS_VENDA[proximoStatus]}. Falta apenas persistir essa acao na API.`,
+    );
+  }
+
+  function handleAbrirCancelamentoPedidoVenda(pedido: PerfilPedidoDetalhe) {
+    setPedidoSelecionado(pedido);
+    setMotivoCancelamentoVenda(pedido.motivoCancelamento ?? "");
+    setIsDialogoCancelamentoVendaAberto(true);
+  }
+
+  function handleConfirmarCancelamentoPedidoVenda() {
+    if (!pedidoSelecionado || pedidoSelecionado.contexto !== "venda") {
+      return;
+    }
+
+    const motivoNormalizado = motivoCancelamentoVenda.trim();
+
+    if (!motivoNormalizado) {
+      toast.error("Descreva o motivo do cancelamento antes de continuar.");
+      return;
+    }
+
+    const pedidoAtualizado: PerfilPedidoDetalhe = {
+      ...pedidoSelecionado,
+      statusFluxoKey: "cancelado",
+      status: ROTULO_STATUS_VENDA.cancelado,
+      motivoCancelamento: motivoNormalizado,
+      observacao: motivoNormalizado,
+    };
+
+    sincronizarPedidoVendaLocal(pedidoAtualizado);
+    setIsDialogoCancelamentoVendaAberto(false);
+    toast.success(
+      `Pedido #${pedidoSelecionado.pedidoId} marcado como cancelado. Falta integrar essa justificativa na API.`,
     );
   }
 
@@ -1537,7 +1712,7 @@ export function PerfilUsuarioPage() {
                         className="flex-1"
                       />
 
-                      {visaoAtiva === "loja" ? (
+                      {isStoreProductsTab ? (
                         <button
                           type="button"
                           onClick={() => abrirModalProduto()}
@@ -1568,10 +1743,15 @@ export function PerfilUsuarioPage() {
                         onSolicitarRemocaoCategoriaLoja={handleSolicitarRemocaoCategoriaLoja}
                       />
                     ) : null}
-                  </div>
 
-                  {/* Renderiza feedback visual adequado para cada estado da listagem. */}
-                  {isStoreSalesTab ? <FluxoStatusVendas itens={fluxoVendas} /> : null}
+                    {isStoreSalesTab ? (
+                      <StatusVendasTabs
+                        filtros={filtrosStatusVenda}
+                        filtroAtivo={filtroStatusVendaAtivo}
+                        onChange={setFiltroStatusVendaAtivo}
+                      />
+                    ) : null}
+                  </div>
 
                   {isConteudoLoading ? (
                     <ProfileSkeleton />
@@ -1587,12 +1767,16 @@ export function PerfilUsuarioPage() {
                       title={
                         estaFiltrandoCategoria
                           ? "Nenhum produto nessa categoria"
+                          : estaFiltrandoStatusVenda
+                            ? `Nenhum pedido em ${ROTULO_STATUS_VENDA[filtroStatusVendaAtivo as PerfilPedidoStatusFluxo]}`
                           : tabContent.vazioTitulo
                       }
                       description={
                         estaFiltrandoCategoria
                           ? "Selecione outra categoria ou adicione um novo produto para preencher essa seção."
-                          : tabContent.vazioDescricao
+                          : estaFiltrandoStatusVenda
+                            ? "Quando houver pedidos nessa etapa do fluxo, eles vao aparecer aqui com os produtos do pedido e as acoes do vendedor."
+                            : tabContent.vazioDescricao
                       }
                     />
                   ) : (
@@ -1601,11 +1785,19 @@ export function PerfilUsuarioPage() {
                       onItemClick={
                         isStoreProductsTab
                           ? abrirModalProduto
+                          : isStoreSalesTab
+                            ? abrirModalPedidoVenda
                           : isBuyerOrdersTab
-                            ? abrirModalPedido
+                            ? abrirModalPedidoCompra
                             : undefined
                       }
-                      clickHint={isBuyerOrdersTab ? "Clique para ver detalhes" : "Clique para editar"}
+                      clickHint={
+                        isStoreSalesTab
+                          ? "Clique para gerenciar pedido"
+                          : isBuyerOrdersTab
+                            ? "Clique para ver detalhes"
+                            : "Clique para editar"
+                      }
                     />
                   )}
                 </div>
@@ -1687,12 +1879,36 @@ export function PerfilUsuarioPage() {
 
       <ModalPedidoCompra
         descricao="Veja os itens comprados, a entrega e as opcoes de acompanhamento deste pedido."
-        isOpen={modalAberto === "pedido"}
-        pedido={pedidoSelecionado}
+        isOpen={modalAberto === "pedido" && pedidoSelecionado?.contexto === "compra"}
+        pedido={pedidoSelecionado?.contexto === "compra" ? pedidoSelecionado : null}
         onClose={fecharModal}
         onConfirmarRecebimento={handleConfirmarRecebimentoPedido}
-        onSolicitarCancelamento={handleSolicitarCancelamentoPedido}
+        onSolicitarCancelamento={() => {
+          if (pedidoSelecionado) {
+            toast(
+              `Pedido #${pedidoSelecionado.pedidoId}: opcao de cancelamento aberta. Ainda falta um endpoint para registrar essa solicitacao.`,
+            );
+          }
+        }}
         onSolicitarTroca={handleSolicitarTrocaPedido}
+      />
+
+      <ModalPedidoVenda
+        descricao="Abra o pedido para revisar os itens, ler a descricao e avancar o status operacional da venda."
+        isOpen={modalAberto === "pedido" && pedidoSelecionado?.contexto === "venda"}
+        pedido={pedidoSelecionado?.contexto === "venda" ? pedidoSelecionado : null}
+        onAvancarStatus={handleAvancarStatusPedidoVenda}
+        onCancelarPedido={handleAbrirCancelamentoPedidoVenda}
+        onClose={fecharModal}
+      />
+
+      <DialogoCancelarPedidoVenda
+        isOpen={isDialogoCancelamentoVendaAberto}
+        motivo={motivoCancelamentoVenda}
+        onChangeMotivo={setMotivoCancelamentoVenda}
+        onClose={() => setIsDialogoCancelamentoVendaAberto(false)}
+        onConfirm={handleConfirmarCancelamentoPedidoVenda}
+        pedido={pedidoSelecionado?.contexto === "venda" ? pedidoSelecionado : null}
       />
 
       <ModalProdutoLoja
