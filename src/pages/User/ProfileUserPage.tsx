@@ -1,10 +1,11 @@
-import { useEffect, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   Plus,
   Store,
   Truck,
   User,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { Spotlight } from "../../Components/home/SpotLight";
 import { PageLayout } from "../../Components/PageLayout";
 import { ProductGrid } from "../../Components/perfil/ProductGrid";
@@ -68,6 +69,7 @@ import {
 } from "../../Services/user/usuarioService";
 import type {
   PerfilGridItem,
+  PerfilPedidoDetalhe,
   PerfilTabContent,
   PerfilTabId,
   PerfilVisaoId,
@@ -75,6 +77,7 @@ import type {
 import { ModalAvatarPerfil } from "./perfilUsuario/ModalAvatarPerfil";
 import { ModalEntregasLoja } from "./perfilUsuario/ModalEntregasLoja";
 import { ModalLojaPerfil } from "./perfilUsuario/ModalLojaPerfil";
+import { ModalPedidoCompra } from "./perfilUsuario/ModalPedidoCompra";
 import { ModalPerfilUsuario } from "./perfilUsuario/ModalPerfilUsuario";
 import { ModalProdutoLoja } from "./perfilUsuario/ModalProdutoLoja";
 import { SecaoProdutosLoja } from "./perfilUsuario/SecaoProdutosLoja";
@@ -269,7 +272,9 @@ export function PerfilUsuarioPage() {
   const tipoEntregaAtualEhRetirada = tipoEntregaAtualId === 1;
   const tituloModalEntregas = "Opcoes de entrega";
   const descricaoModalEntregas =
-    "Cadastre, ajuste ou remova as opções de entrega e os valores de frete da sua loja.";
+    "Cadastre, ajuste ou remova as opcoes de entrega e os valores de frete da sua loja.";
+  const [pedidoSelecionado, setPedidoSelecionado] = useState<PerfilPedidoDetalhe | null>(null);
+  const isBuyerOrdersTab = visaoAtiva === "comprador" && abaAtivaResolvida === "compras";
 
   useEffect(() => {
     if (!temLoja && visaoAtiva === "loja") {
@@ -342,6 +347,7 @@ export function PerfilUsuarioPage() {
   }, [usuario]);
 
   function fecharModal() {
+    setPedidoSelecionado(null);
     fecharModalLocal();
   }
 
@@ -425,6 +431,33 @@ export function PerfilUsuarioPage() {
     setProdutoForm(criarProdutoForm(item));
     setProdutoImagemArquivo(null);
     setModalAberto("produto");
+  }
+
+  function abrirModalPedido(item: PerfilGridItem) {
+    if (!item.pedido) {
+      return;
+    }
+
+    setPedidoSelecionado(item.pedido);
+    setModalAberto("pedido");
+  }
+
+  function handleConfirmarRecebimentoPedido(pedido: PerfilPedidoDetalhe) {
+    toast.success(
+      `Pedido #${pedido.pedidoId}: fluxo de recebimento pronto na interface. Falta integrar esta acao na API.`,
+    );
+  }
+
+  function handleSolicitarCancelamentoPedido(pedido: PerfilPedidoDetalhe) {
+    toast(
+      `Pedido #${pedido.pedidoId}: opcao de cancelamento aberta. Ainda falta um endpoint para registrar essa solicitacao.`,
+    );
+  }
+
+  function handleSolicitarTrocaPedido(pedido: PerfilPedidoDetalhe) {
+    toast(
+      `Pedido #${pedido.pedidoId}: opcao de troca aberta. Ainda falta um endpoint para registrar essa solicitacao.`,
+    );
   }
 
   function handleAlternarModoExclusaoCategorias() {
@@ -1560,7 +1593,14 @@ export function PerfilUsuarioPage() {
                   ) : (
                     <ProductGrid
                       itens={itensExibidos}
-                      onItemClick={isStoreProductsTab ? abrirModalProduto : undefined}
+                      onItemClick={
+                        isStoreProductsTab
+                          ? abrirModalProduto
+                          : isBuyerOrdersTab
+                            ? abrirModalPedido
+                            : undefined
+                      }
+                      clickHint={isBuyerOrdersTab ? "Clique para ver detalhes" : "Clique para editar"}
                     />
                   )}
                 </div>
@@ -1638,6 +1678,16 @@ export function PerfilUsuarioPage() {
         onToggleEntregaAtiva={handleEntregaAtivaChange}
         tipoEntregaAtualEhRetirada={tipoEntregaAtualEhRetirada}
         titulo={tituloModalEntregas}
+      />
+
+      <ModalPedidoCompra
+        descricao="Veja os itens comprados, a entrega e as opcoes de acompanhamento deste pedido."
+        isOpen={modalAberto === "pedido"}
+        pedido={pedidoSelecionado}
+        onClose={fecharModal}
+        onConfirmarRecebimento={handleConfirmarRecebimentoPedido}
+        onSolicitarCancelamento={handleSolicitarCancelamentoPedido}
+        onSolicitarTroca={handleSolicitarTrocaPedido}
       />
 
       <ModalProdutoLoja

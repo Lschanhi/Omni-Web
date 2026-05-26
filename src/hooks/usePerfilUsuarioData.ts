@@ -8,13 +8,14 @@ import type {
   UsuarioTelefonePerfil,
   UsuarioStatsData,
 } from "../types/perfil";
+import type { HomeProduct } from "../types/home";
 import {
   AUTH_CHANGED_EVENT,
   getStoredUser,
   isAuthenticated,
   updateStoredUser,
 } from "../Services/auth/session";
-import { listarProdutos } from "../Services/produtos/produtoService";
+import { criarImagemPlaceholder, listarProdutos } from "../Services/produtos/produtoService";
 import { listarEnderecos } from "../Services/user/enderecoService";
 import { obterMinhaLoja, type LojaGestaoApiResponse } from "../Services/user/lojaService";
 import { formatarTelefoneParaExibicao } from "../Services/user/telefoneService";
@@ -47,6 +48,11 @@ const INITIAL_STATS: UsuarioStatsData = {
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
 });
 
 function formatarEndereco(endereco: UsuarioPerfilApiResponse["enderecos"][number] | undefined) {
@@ -131,14 +137,100 @@ function mapearUsuario(
   };
 }
 
-function mapearCompras(pedidos: PedidoLeituraApiResponse[]): PerfilGridItem[] {
-  return pedidos.map((pedido) => ({
-    id: `pedido-${pedido.id}`,
-    titulo: `Pedido #${pedido.id}`,
-    subtitulo: `${pedido.status} • ${pedido.tipoEntrega}`,
-    valor: currencyFormatter.format(Number(pedido.valorTotalPedido)),
-    badge: pedido.itens[0]?.nomeLoja ?? undefined,
-  }));
+function formatarDataPedido(dataPedido: string) {
+  const data = new Date(dataPedido);
+
+  if (Number.isNaN(data.getTime())) {
+    return dataPedido;
+  }
+
+  return dateTimeFormatter.format(data);
+}
+
+function formatarEnderecoEntrega(pedido: PedidoLeituraApiResponse) {
+  const partes = [
+    `${pedido.tipoLogradouroEntrega} ${pedido.nomeEnderecoEntrega}, ${pedido.numeroEntrega}`,
+    pedido.complementoEntrega?.trim() || "",
+    `${pedido.cidadeEntrega}/${pedido.ufEntrega}`,
+    `CEP ${pedido.cepEntrega}`,
+  ].filter(Boolean);
+
+  return partes.join(" - ");
+}
+
+function mapearItensPedido(
+  pedido: PedidoLeituraApiResponse,
+  produtosPorId: Map<number, HomeProduct>,
+) {
+  return pedido.itens.map((item) => {
+    const produto = produtosPorId.get(item.produtoId);
+    const imagens = produto?.imagens?.filter(Boolean) ?? [];
+    const imagemPrincipal =
+      produto?.imagem || imagens[0] || criarImagemPlaceholder(item.nomeProduto);
+    const imagensDisponiveis = imagens.length > 0 ? imagens : [imagemPrincipal];
+
+    return {
+      id: item.id,
+      produtoId: item.produtoId,
+      nomeProduto: item.nomeProduto,
+      skuProduto: item.skuProduto,
+      lojaId: item.lojaId,
+      nomeLoja: produto?.lojaNome?.trim() || item.nomeLoja,
+      quantidade: item.quantidade,
+      precoUnitario: currencyFormatter.format(Number(item.precoUnitario)),
+      valorTotal: currencyFormatter.format(Number(item.valorTotal)),
+      descricao:
+        produto?.descricao?.trim() ||
+        "Produto comprado neste pedido. A descricao detalhada ainda nao foi enviada pela API.",
+      imagemUrl: imagemPrincipal,
+      imagens: imagensDisponiveis,
+    };
+  });
+}
+
+function mapearCompras(
+  pedidos: PedidoLeituraApiResponse[],
+  produtos: HomeProduct[],
+): PerfilGridItem[] {
+  const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
+
+  return pedidos.map((pedido) => {
+    const itensDetalhados = mapearItensPedido(pedido, produtosPorId);
+    const itemPrincipal = itensDetalhados[0];
+    const resumoItens = itensDetalhados
+      .slice(0, 2)
+      .map((item) => `${item.quantidade}x ${item.nomeProduto}`)
+      .join(" | ");
+    const descricaoPedido =
+      pedido.observacao?.trim() ||
+      resumoItens ||
+      "Abra o pedido para visualizar os itens, a entrega e as opcoes de acompanhamento.";
+
+    return {
+      id: `pedido-${pedido.id}`,
+      titulo: `Pedido #${pedido.id}`,
+      subtitulo: `${pedido.status} - ${pedido.tipoEntrega}`,
+      valor: currencyFormatter.format(Number(pedido.valorTotalPedido)),
+      imagemUrl: itemPrincipal?.imagemUrl,
+      imagens: itemPrincipal?.imagens,
+      badge: itemPrincipal?.nomeLoja ?? pedido.itens[0]?.nomeLoja ?? undefined,
+      descricao: descricaoPedido,
+      pedido: {
+        pedidoId: pedido.id,
+        status: pedido.status,
+        tipoEntrega: pedido.tipoEntrega,
+        dataPedido: formatarDataPedido(pedido.dataPedido),
+        observacao:
+          pedido.observacao?.trim() ||
+          "Sem observacoes adicionais informadas para este pedido.",
+        enderecoEntrega: formatarEnderecoEntrega(pedido),
+        subtotal: currencyFormatter.format(Number(pedido.valorTotalProdutos)),
+        frete: currencyFormatter.format(Number(pedido.valorFrete)),
+        total: currencyFormatter.format(Number(pedido.valorTotalPedido)),
+        itens: itensDetalhados,
+      },
+    };
+  });
 }
 
 function mapearVendas(metricas: LojaMetricasApiResponse | null): PerfilGridItem[] {
@@ -307,7 +399,7 @@ export function usePerfilUsuarioData() {
                 imagens: produto.imagens,
               }))
           : [];
-        const compras = mapearCompras(pedidos);
+        const compras = mapearCompras(pedidos, produtos);
         const vendas = mapearVendas(metricas);
         const telefones = mapearTelefones(perfil);
         const enderecos = mapearEnderecos(perfil, enderecosDetalhados);
