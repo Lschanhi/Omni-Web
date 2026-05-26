@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type {
+  PerfilPedidoStatusFluxo,
   PerfilGridItem,
   PerfilPageState,
   PerfilTabId,
@@ -251,6 +252,18 @@ function resolverChaveFluxoVenda(status: string) {
 
   if (
     [
+      "cancelado",
+      "cancelada",
+      "cancelamento solicitado",
+      "pedido cancelado",
+      "cancelado pelo vendedor",
+    ].includes(statusNormalizado)
+  ) {
+    return "cancelado" as const;
+  }
+
+  if (
+    [
       "finalizado",
       "entregue",
       "concluido",
@@ -262,6 +275,26 @@ function resolverChaveFluxoVenda(status: string) {
   }
 
   return null;
+}
+
+function normalizarStatusFluxoVenda(status: string): PerfilPedidoStatusFluxo {
+  return resolverChaveFluxoVenda(status) ?? "em-separacao";
+}
+
+function criarRotuloStatusFluxoVenda(status: PerfilPedidoStatusFluxo) {
+  switch (status) {
+    case "pronto":
+      return "Pronto";
+    case "enviado":
+      return "Enviado";
+    case "finalizado":
+      return "Finalizado";
+    case "cancelado":
+      return "Cancelado";
+    case "em-separacao":
+    default:
+      return "Em separacao";
+  }
 }
 
 function criarFluxoStatusVendas(metricas: LojaMetricasApiResponse | null): PerfilVendaStatusItem[] {
@@ -364,7 +397,9 @@ function mapearCompras(
       descricao: descricaoPedido,
       pedido: {
         pedidoId: pedido.id,
+        contexto: "compra",
         status: pedido.status,
+        statusFluxoKey: normalizarStatusFluxoVenda(pedido.status),
         tipoEntrega: pedido.tipoEntrega,
         dataPedido: formatarDataPedido(pedido.dataPedido),
         observacao:
@@ -381,27 +416,81 @@ function mapearCompras(
 }
 
 function mapearVendas(
-  metricas: LojaMetricasApiResponse | null,
+  pedidos: PedidoLeituraApiResponse[],
   produtos: HomeProduct[],
+  lojaId?: number | null,
 ): PerfilGridItem[] {
-  if (!metricas) {
+  if (pedidos.length === 0) {
     return [];
   }
 
   const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
+  const pedidosRelacionados =
+    lojaId && Number.isFinite(lojaId)
+      ? pedidos.filter((pedido) => pedido.itens.some((item) => item.lojaId === lojaId))
+      : pedidos;
+  const pedidosBase = pedidosRelacionados.length > 0 ? pedidosRelacionados : pedidos;
 
-  return metricas.produtosMaisVendidosPorReceita.map((produto) => {
-    const produtoDetalhado = produtosPorId.get(produto.produtoId);
+  return pedidosBase.map((pedido) => {
+    const itensDaLoja =
+      lojaId && Number.isFinite(lojaId)
+        ? pedido.itens.filter((item) => item.lojaId === lojaId)
+        : pedido.itens;
+    const itensFiltrados = itensDaLoja.length > 0 ? itensDaLoja : pedido.itens;
+    const pedidoDaLoja = {
+      ...pedido,
+      itens: itensFiltrados,
+    };
+    const itensDetalhados = mapearItensPedido(pedidoDaLoja, produtosPorId);
+    const itemPrincipal = itensDetalhados[0];
+    const subtotalNumerico = itensFiltrados.reduce(
+      (acumulador, item) => acumulador + Number(item.valorTotal),
+      0,
+    );
+    const totalNumerico =
+      itensFiltrados.length === pedido.itens.length
+        ? Number(pedido.valorTotalPedido)
+        : subtotalNumerico + Number(pedido.valorFrete);
+    const totalItens = itensFiltrados.reduce(
+      (acumulador, item) => acumulador + Number(item.quantidade),
+      0,
+    );
+    const statusFluxoKey = normalizarStatusFluxoVenda(pedido.status);
+    const statusRotulo = criarRotuloStatusFluxoVenda(statusFluxoKey);
+    const resumoItens = itensDetalhados
+      .slice(0, 2)
+      .map((item) => `${item.quantidade}x ${item.nomeProduto}`)
+      .join(" | ");
+    const descricaoPedido =
+      pedido.observacao?.trim() ||
+      resumoItens ||
+      "Abra o pedido para ver os itens, a entrega e as acoes do fluxo da venda.";
 
     return {
-      id: `venda-${produto.produtoId}`,
-      titulo: produto.nome,
-      subtitulo: `${produto.quantidadeVendida} unidades vendidas`,
-      valor: currencyFormatter.format(Number(produto.receitaBruta)),
-      imagemUrl: produtoDetalhado?.imagem,
-      imagens: produtoDetalhado?.imagens,
-      descricao: produtoDetalhado?.descricao ?? "",
-      badge: "Receita",
+      id: `venda-pedido-${pedido.id}`,
+      titulo: `Pedido #${pedido.id}`,
+      subtitulo: `${statusRotulo} - ${pedido.tipoEntrega}`,
+      valor: currencyFormatter.format(totalNumerico),
+      imagemUrl: itemPrincipal?.imagemUrl,
+      imagens: itemPrincipal?.imagens,
+      descricao: descricaoPedido,
+      badge: totalItens > 1 ? `${totalItens} itens` : "1 item",
+      pedido: {
+        pedidoId: pedido.id,
+        contexto: "venda",
+        status: statusRotulo,
+        statusFluxoKey,
+        tipoEntrega: pedido.tipoEntrega,
+        dataPedido: formatarDataPedido(pedido.dataPedido),
+        observacao:
+          pedido.observacao?.trim() ||
+          "Sem observacoes adicionais informadas para este pedido.",
+        enderecoEntrega: formatarEnderecoEntrega(pedido),
+        subtotal: currencyFormatter.format(subtotalNumerico),
+        frete: currencyFormatter.format(Number(pedido.valorFrete)),
+        total: currencyFormatter.format(totalNumerico),
+        itens: itensDetalhados,
+      },
     };
   });
 }
@@ -589,7 +678,7 @@ export function usePerfilUsuarioData() {
               }))
           : [];
         const compras = mapearCompras(pedidos, produtosEnriquecidosPedidos);
-        const vendas = mapearVendas(metricas, produtosEnriquecidosPedidos);
+        const vendas = mapearVendas(pedidos, produtosEnriquecidosPedidos, lojaId);
         const telefones = mapearTelefones(perfil);
         const enderecos = mapearEnderecos(perfil, enderecosDetalhados);
 
