@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownWideNarrow } from "lucide-react";
 import { Banner } from "../../Components/home/Banner";
 import { CategoryList } from "../../Components/home/CategoryList";
@@ -9,6 +9,8 @@ import { PageLayout } from "../../Components/PageLayout";
 import { createMockImage } from "../../data/produtos";
 import { listarProdutos } from "../../Services/produtos/produtoService";
 import type { HomeCategory, HomeProduct } from "../../types/home";
+
+const PRODUCTS_PER_PAGE = 6;
 
 function resolverIconeCategoria(categoria: string): HomeCategory["icone"] {
   const normalizedCategory = categoria
@@ -48,7 +50,7 @@ export function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [loadError, setLoadError] = useState("");
-  const visibleCount = 6;
+  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_PAGE);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,41 +88,73 @@ export function HomePage() {
     };
   }, []);
 
-  const categories: HomeCategory[] = [
-    { id: "todos", nome: "Todos", icone: "smartphone" },
-    ...products
-      .reduce<HomeCategory[]>((accumulator, product) => {
-        const hasCategory = accumulator.some(
-          (category) => category.id === product.categoriaId,
-        );
+  const categories: HomeCategory[] = useMemo(
+    () => [
+      { id: "todos", nome: "Todos", icone: "smartphone" },
+      ...products
+        .reduce<HomeCategory[]>((accumulator, product) => {
+          const hasCategory = accumulator.some(
+            (category) => category.id === product.categoriaId,
+          );
 
-        if (!hasCategory) {
-          accumulator.push({
-            id: product.categoriaId,
-            nome: product.categoriaNome,
-            icone: resolverIconeCategoria(product.categoriaNome),
-          });
-        }
+          if (!hasCategory) {
+            accumulator.push({
+              id: product.categoriaId,
+              nome: product.categoriaNome,
+              icone: resolverIconeCategoria(product.categoriaNome),
+            });
+          }
 
-        return accumulator;
-      }, [])
-      .sort((firstCategory, secondCategory) =>
-        firstCategory.nome.localeCompare(secondCategory.nome),
-      ),
-  ];
+          return accumulator;
+        }, [])
+        .sort((firstCategory, secondCategory) =>
+          firstCategory.nome.localeCompare(secondCategory.nome),
+        ),
+    ],
+    [products],
+  );
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory =
-      selectedCategory === "todos" || product.categoriaId === selectedCategory;
-    const matchesSearch =
-      normalizedSearch.length === 0 ||
-      product.nome.toLowerCase().includes(normalizedSearch);
+  const normalizedSearch = useMemo(
+    () =>
+      searchTerm
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase(),
+    [searchTerm],
+  );
 
-    return matchesCategory && matchesSearch;
-  });
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const matchesCategory =
+          selectedCategory === "todos" || product.categoriaId === selectedCategory;
+        const normalizedProductName = product.nome
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+        const matchesSearch =
+          normalizedSearch.length === 0 || normalizedProductName.includes(normalizedSearch);
+
+        return matchesCategory && matchesSearch;
+      }),
+    [normalizedSearch, products, selectedCategory],
+  );
+
   const activeCategoryName =
     categories.find((categoria) => categoria.id === selectedCategory)?.nome ?? "Todos";
+
+  const hasMoreProducts = visibleCount < filteredProducts.length;
+
+  const loadMoreProducts = useCallback(() => {
+    setVisibleCount((currentCount) =>
+      Math.min(currentCount + PRODUCTS_PER_PAGE, filteredProducts.length),
+    );
+  }, [filteredProducts.length]);
+
+  useEffect(() => {
+    setVisibleCount(PRODUCTS_PER_PAGE);
+  }, [searchTerm, selectedCategory]);
 
   return (
     <PageLayout>
@@ -192,6 +226,8 @@ export function HomePage() {
               termoBusca={searchTerm}
               categoriaAtivaNome={activeCategoryName}
               visibleCount={visibleCount}
+              hasMoreProducts={hasMoreProducts}
+              onLoadMore={loadMoreProducts}
             />
           </section>
         </div>
