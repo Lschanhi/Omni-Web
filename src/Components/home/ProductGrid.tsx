@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { LoaderCircle, PackageSearch } from "lucide-react";
 import { ProductCard } from "./ProductCard";
 import type { HomeProduct } from "../../types/home";
@@ -9,6 +10,8 @@ type ProductGridProps = {
   termoBusca: string;
   categoriaAtivaNome: string;
   visibleCount: number;
+  hasMoreProducts: boolean;
+  onLoadMore: () => void;
 };
 
 // Renderiza a grade de produtos com suporte a loading, vazio e estrutura para paginacao futura.
@@ -18,10 +21,39 @@ export function ProductGrid({
   termoBusca,
   categoriaAtivaNome,
   visibleCount,
+  hasMoreProducts,
+  onLoadMore,
 }: ProductGridProps) {
   // Calcula quantos itens estao visiveis no mock atual.
   // Esse numero sera util quando a API trouxer paginação ou infinite scroll.
   const quantidadeVisivel = Math.min(produtos.length, visibleCount);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const marker = loadMoreRef.current;
+
+    if (!marker || !hasMoreProducts) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          onLoadMore();
+        }
+      },
+      {
+        rootMargin: "360px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(marker);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMoreProducts, onLoadMore, quantidadeVisivel]);
 
   if (isLoading) {
     return (
@@ -81,17 +113,29 @@ export function ProductGrid({
           <span className="font-semibold text-white">{produtos.length}</span> produtos
         </p>
 
-        {/* Aviso estrutural para o proximo passo de evolucao com API e infinite scroll. */}
-        <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-neutral-500">
-          Estrutura pronta para infinite scroll
-        </p>
+        {hasMoreProducts ? (
+          <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-neutral-500">
+            Carregando por rolagem
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {produtos.slice(0, visibleCount).map((produto) => (
+        {produtos.slice(0, quantidadeVisivel).map((produto) => (
           <ProductCard key={produto.id} produto={produto} />
         ))}
       </div>
+
+      {hasMoreProducts ? (
+        <div
+          ref={loadMoreRef}
+          className="flex min-h-16 items-center justify-center gap-3 text-sm text-neutral-400"
+          aria-live="polite"
+        >
+          <LoaderCircle className="h-4 w-4 animate-spin text-yellow-400" />
+          <span>Carregando mais produtos...</span>
+        </div>
+      ) : null}
     </section>
   );
 }
