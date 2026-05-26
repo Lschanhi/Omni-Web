@@ -77,6 +77,34 @@ export interface PerfilStatCardItem {
   value: string;
 }
 
+export interface PerfilPedidoItem {
+  id: number;
+  produtoId: number;
+  nomeProduto: string;
+  skuProduto: string;
+  lojaId: number;
+  nomeLoja: string;
+  quantidade: number;
+  precoUnitario: string;
+  valorTotal: string;
+  descricao: string;
+  imagemUrl?: string;
+  imagens?: string[];
+}
+
+export interface PerfilPedidoDetalhe {
+  pedidoId: number;
+  status: string;
+  tipoEntrega: string;
+  dataPedido: string;
+  observacao: string;
+  enderecoEntrega: string;
+  subtotal: string;
+  frete: string;
+  total: string;
+  itens: PerfilPedidoItem[];
+}
+
 // Representa um item exibido no grid das abas de conteudo.
 export interface PerfilGridItem {
   id: string;
@@ -93,6 +121,7 @@ export interface PerfilGridItem {
   disponivel?: boolean;
   descricao?: string;
   imagens?: string[];
+  pedido?: PerfilPedidoDetalhe;
 }
 
 // Estrutura dos dados de cada aba do perfil.

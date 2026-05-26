@@ -5,9 +5,14 @@ import { ProdutoImagem } from "../produto/ProdutoImagem";
 interface ProductGridProps {
   itens: PerfilGridItem[];
   onItemClick?: (item: PerfilGridItem) => void;
+  clickHint?: string;
 }
 
-export function ProductGrid({ itens, onItemClick }: ProductGridProps) {
+export function ProductGrid({
+  itens,
+  onItemClick,
+  clickHint = "Clique para editar",
+}: ProductGridProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {itens.map((item) => {
@@ -48,7 +53,7 @@ export function ProductGrid({ itens, onItemClick }: ProductGridProps) {
 
                 {onItemClick ? (
                   <span className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                    Clique para editar
+                    {clickHint}
                   </span>
                 ) : null}
               </div>

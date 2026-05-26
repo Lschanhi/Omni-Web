@@ -1,6 +1,6 @@
 import type { TipoDocumentoFiscalLoja } from "../../../Services/user/lojaService";
 
-export type ModalAberto = "avatar" | "perfil" | "loja" | "produto" | "entregas" | null;
+export type ModalAberto = "avatar" | "perfil" | "loja" | "produto" | "pedido" | "entregas" | null;
 
 export type AvatarDestino = "usuario" | "loja";
 
