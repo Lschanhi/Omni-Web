@@ -50,7 +50,7 @@ export function SecaoProdutosLoja({
         <div>
           <p className="text-sm font-medium text-white">Categorias da loja</p>
           <p className="text-xs text-neutral-400">
-            Filtre os produtos pelas categorias ja cadastradas na sua vitrine.
+            Filtre os produtos pelas categorias já cadastradas na sua vitrine.
           </p>
         </div>
       </div>
@@ -64,7 +64,7 @@ export function SecaoProdutosLoja({
 
       {categoriaLojaPendenteExclusao ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
-          <p className="font-medium text-red-200">Confirmar exclusao da categoria</p>
+          <p className="font-medium text-red-200">Confirmar exclusão da categoria</p>
           <p className="mt-2">
             {criarMensagemConfirmacaoExclusaoCategoria(categoriaLojaPendenteExclusao)}
           </p>
@@ -189,7 +189,7 @@ export function SecaoProdutosLoja({
         </>
       ) : (
         <p className="text-sm text-neutral-500">
-          As categorias vao aparecer aqui assim que houver produtos publicados.
+          As categorias vão aparecer aqui assim que houver produtos publicados.
         </p>
       )}
     </div>

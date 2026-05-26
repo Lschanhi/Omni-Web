@@ -58,7 +58,7 @@ export function LoginPage() {
       navigate({ to: "/" });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Nao foi possivel realizar o login.";
+        error instanceof Error ? error.message : "Não foi possivel realizar o login.";
       alert(message);
     } finally {
       setIsLoading(false);
@@ -97,7 +97,7 @@ export function LoginPage() {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm font-semibold text-white">Conta conectada</p>
                 <p className="mt-1 text-sm text-neutral-400">
-                  Sua sessao fica pronta para usar carrinho, checkout e perfil integrados.
+                  Sua sessão fica pronta para usar carrinho, checkout e perfil integrados.
                 </p>
               </div>
             </div>
@@ -119,7 +119,7 @@ export function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="voce@exemplo.com"
+                placeholder="você@exemplo.com"
                 value={formData.email}
                 onChange={handleInputChange}
                 error={errors.email}
@@ -186,7 +186,7 @@ export function LoginPage() {
               </div>
 
               <p className="text-center text-sm text-neutral-400">
-                Ainda nao possui conta?
+                Ainda não possui conta?
                 <Link
                   to="/cadastro"
                   className="ml-2 font-semibold text-yellow-400 transition hover:text-yellow-300 hover:underline"

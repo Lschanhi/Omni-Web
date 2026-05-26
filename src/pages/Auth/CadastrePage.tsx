@@ -126,7 +126,7 @@ export function CadastroPage() {
       navigate({ to: "/login" });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Nao foi possivel concluir o cadastro.";
+        error instanceof Error ? error.message : "Não foi possível concluir o cadastro.";
       alert(message);
     } finally {
       setIsLoading(false);
@@ -156,14 +156,14 @@ export function CadastroPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-semibold text-white">Cadastro rapido</p>
+                <p className="text-sm font-semibold text-white">Cadastro rápido</p>
                 <p className="mt-1 text-sm text-neutral-400">
-                  Formulario otimizado para celular, tablet e desktop.
+                  Formulário otimizado para celular, tablet e desktop.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-semibold text-white">Validacao imediata</p>
+                <p className="text-sm font-semibold text-white">Validação imediata</p>
                 <p className="mt-1 text-sm text-neutral-400">
                   Erros aparecem abaixo dos campos para facilitar o preenchimento.
                 </p>
@@ -178,7 +178,7 @@ export function CadastroPage() {
                   Finalize seu cadastro
                 </h2>
                 <p className="text-sm text-neutral-400">
-                  Preencha os campos obrigatorios para criar sua conta.
+                  Preencha os campos obrigatórios para criar sua conta.
                 </p>
               </div>
 
@@ -203,7 +203,7 @@ export function CadastroPage() {
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="voce@exemplo.com"
+                  placeholder="você@exemplo.com"
                   error={errors.email}
                   icon={<Mail className="h-5 w-5" />}
                 />
@@ -249,13 +249,13 @@ export function CadastroPage() {
                   type="password"
                   value={formData.senha}
                   onChange={handleInputChange}
-                  placeholder="Minimo de 6 caracteres"
+                  placeholder="Mínimo de 6 caracteres"
                   error={errors.senha}
                   icon={<LockIcon className="h-5 w-5" />}
                 />
 
                 <CampoCadastro
-                  label="Confirmacao de senha"
+                  label="Confirmação de senha"
                   id="confirmarSenha"
                   name="confirmarSenha"
                   type="password"
@@ -275,7 +275,7 @@ export function CadastroPage() {
               </Botao>
 
               <p className="text-center text-sm text-neutral-400">
-                Ja possui uma conta?
+                Já possui uma conta?
                 <Link
                   to="/login"
                   className="ml-2 font-semibold text-yellow-400 transition hover:text-yellow-300 hover:underline"

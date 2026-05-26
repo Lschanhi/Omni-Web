@@ -101,7 +101,7 @@ export function SuccessPage() {
             </div>
 
             <div className="flex justify-between">
-              <span className="text-gray-400">Preco:</span>
+              <span className="text-gray-400">Preço:</span>
               <span className="font-bold text-yellow-500">
                 {checkoutResult.total.toLocaleString("pt-BR", {
                   style: "currency",
@@ -146,7 +146,7 @@ export function SuccessPage() {
           <div className="h-[1px] w-full bg-gray-700" />
 
           <p className="text-sm text-gray-400">
-            Voce recebera mais informacoes sobre o pedido em seguida.
+            Você receberá mais informações sobre o pedido em seguida.
           </p>
 
           <div className="flex w-full flex-col gap-4 pt-4 md:flex-row">
@@ -155,7 +155,7 @@ export function SuccessPage() {
               onClick={() => navigate({ to: "/" })}
               icon={<HomeIcon className="h-5 w-5" />}
             >
-              Voltar para Pagina Principal
+              Voltar para Página Principal
             </Botao>
 
             <Botao

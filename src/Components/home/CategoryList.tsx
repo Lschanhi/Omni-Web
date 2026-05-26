@@ -37,7 +37,7 @@ export function CategoryList({
         <div>
           <h2 className="text-xl font-semibold text-white sm:text-2xl">Categorias</h2>
           <p className="text-sm text-neutral-400">
-            Navegue por colecoes como em um marketplace real.
+            Navegue por coleções como em um marketplace real.
           </p>
         </div>
       </div>

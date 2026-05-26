@@ -98,7 +98,7 @@ export function ModalProdutoLoja({
             <div>
               <p className="text-sm font-medium text-white">Imagem principal</p>
               <p className="text-xs text-neutral-400">
-                Envie uma foto do produto em PNG, JPG ou WebP com ate 2 MB.
+                Envie uma foto do produto em PNG, JPG ou WebP com até 2 MB.
               </p>
             </div>
 
@@ -134,7 +134,7 @@ export function ModalProdutoLoja({
               <div className="space-y-1">
                 <p className="font-medium text-white">Selecionar foto do produto</p>
                 <p className="text-xs text-neutral-300">
-                  O arquivo escolhido ja sera usado no cadastro.
+                  O arquivo escolhido já será usado no cadastro.
                 </p>
               </div>
 
@@ -170,7 +170,7 @@ export function ModalProdutoLoja({
             onChange={onToggleProdutoDisponivel}
             className="h-4 w-4 cursor-pointer accent-yellow-500"
           />
-          Produto disponivel para venda
+          Produto disponível para venda
         </label>
 
         {produtoErroAcao ? <p className="text-sm text-red-400">{produtoErroAcao}</p> : null}
@@ -179,8 +179,8 @@ export function ModalProdutoLoja({
           <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
             <p className="font-medium text-red-200">Confirmar exclusao do produto</p>
             <p className="mt-2">
-              O produto "{produtoForm.nome.trim() || "selecionado"}" deixara de aparecer para os
-              usuarios, mas continuara salvo no banco.
+              O produto "{produtoForm.nome.trim() || "selecionado"}" deixará de aparecer para os
+              usuarios, mas continuará salvo no banco.
             </p>
           </div>
         ) : null}

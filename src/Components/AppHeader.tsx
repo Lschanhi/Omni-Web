@@ -284,7 +284,7 @@ export default function AppHeader() {
 
         {/* Linha de contexto para manter o header mais informativo e alinhado com a Home nova. */}
         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-neutral-500">
-          <span>Navegacao</span>
+          <span>Home</span>
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="text-neutral-300">
             {pathname === "/"

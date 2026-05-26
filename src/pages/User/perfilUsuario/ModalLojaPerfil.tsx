@@ -92,7 +92,7 @@ export function ModalLojaPerfil({
 
         <div className="flex flex-col gap-1">
           <label htmlFor="descricao" className="text-[#6b6b6b]">
-            Descricao
+            Descrição
           </label>
           <textarea
             id="descricao"
@@ -112,11 +112,11 @@ export function ModalLojaPerfil({
             onChange={onToggleLojaAtiva}
             className="h-4 w-4 cursor-pointer accent-yellow-500"
           />
-          Loja ativa para receber publicacoes e vendas
+          Loja ativa para receber publicações e vendas
         </label>
 
         <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm text-yellow-100">
-          O cadastro usa o endereco e o telefone principal do seu perfil atual.
+          O cadastro usa o endereço e o telefone principal do seu perfil atual.
         </div>
 
         {lojaErroAcao ? <p className="text-sm text-red-400">{lojaErroAcao}</p> : null}

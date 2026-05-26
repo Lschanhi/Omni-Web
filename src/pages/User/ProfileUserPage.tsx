@@ -247,8 +247,8 @@ export function PerfilUsuarioPage() {
   const heroDescricao =
     visaoAtiva === "loja"
       ? loja?.descricao?.trim() ||
-        "Acompanhe a identidade publica da loja, os indicadores e os itens da vitrine em um painel separado do perfil de comprador."
-      : "Acompanhe seus dados de comprador, edite informacoes pessoais e consulte o historico de compras em um painel separado da loja.";
+        "Acompanhe a identidade pública da loja, os indicadores e os itens da vitrine em um painel separado do perfil de comprador."
+      : "Acompanhe seus dados de comprador, edite informações pessoais e consulte o histórico de compras em um painel separado da loja.";
   const editandoFotoLoja = avatarDestino === "loja";
   const tituloModalAvatar = editandoFotoLoja ? "Foto da loja" : "Foto do perfil";
   const descricaoModalAvatar = editandoFotoLoja
@@ -262,14 +262,14 @@ export function PerfilUsuarioPage() {
   const tituloModalProduto = produtoForm.id ? "Editar produto" : "Adicionar produto";
   const descricaoModalProduto = produtoForm.id
     ? "Atualize os dados do produto selecionado sem sair do painel da loja."
-    : "Cadastre um novo produto para publica-lo na vitrine da loja.";
+    : "Cadastre um novo produto para publicá-lo na vitrine da loja.";
   const isProcessandoProduto = isSalvandoProduto || isRemovendoProduto;
   const entregaEmEdicao = Boolean(entregaLojaForm.id);
   const tipoEntregaAtualId = Number(entregaLojaForm.tipoEntregaId || 1);
   const tipoEntregaAtualEhRetirada = tipoEntregaAtualId === 1;
   const tituloModalEntregas = "Opcoes de entrega";
   const descricaoModalEntregas =
-    "Cadastre, ajuste ou remova as opcoes de entrega e os valores de frete da sua loja.";
+    "Cadastre, ajuste ou remova as opções de entrega e os valores de frete da sua loja.";
 
   useEffect(() => {
     if (!temLoja && visaoAtiva === "loja") {
@@ -391,7 +391,7 @@ export function PerfilUsuarioPage() {
     }
 
     if (!podeGerenciarLoja) {
-      alert("Cadastre um telefone e um endereco principal no perfil antes de criar a loja.");
+      alert("Cadastre um telefone e um endereço principal no perfil antes de criar a loja.");
       return;
     }
 
@@ -513,7 +513,7 @@ export function PerfilUsuarioPage() {
       setLojaFeedback({
         tone: "error",
         message:
-          error instanceof Error ? error.message : "Nao foi possivel excluir a categoria da loja.",
+          error instanceof Error ? error.message : "Não foi possível excluir a categoria da loja.",
       });
     } finally {
       setCategoriaLojaRemovendoId(null);
@@ -535,7 +535,7 @@ export function PerfilUsuarioPage() {
       setEntregasLoja(ordenarEntregasLoja(opcoes));
     } catch (error) {
       setEntregaErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel carregar as entregas da loja.",
+        error instanceof Error ? error.message : "Não foi possível carregar as entregas da loja.",
       );
     } finally {
       setIsCarregandoEntregas(false);
@@ -619,11 +619,11 @@ export function PerfilUsuarioPage() {
       const tipoEntregaId = Number(entregaLojaForm.tipoEntregaId);
 
       if (!TIPOS_ENTREGA_OPTIONS.some((option) => option.id === tipoEntregaId)) {
-        throw new Error("Selecione um tipo de entrega valido.");
+        throw new Error("Selecione um tipo de entrega válido.");
       }
 
       if (!entregaLojaForm.nome.trim()) {
-        throw new Error("Informe o nome da opcao de entrega.");
+        throw new Error("Informe o nome da opção de entrega.");
       }
 
       const payload: LojaEntregaMutacaoPayload = {
@@ -647,10 +647,10 @@ export function PerfilUsuarioPage() {
         ),
       );
       setEntregaLojaForm(LOJA_ENTREGA_FORM_INICIAL);
-      alert(entregaLojaForm.id ? "Opcao de entrega atualizada com sucesso!" : "Opcao de entrega criada com sucesso!");
+      alert(entregaLojaForm.id ? "Opção de entrega atualizada com sucesso!" : "Opção de entrega criada com sucesso!");
     } catch (error) {
       setEntregaErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel salvar a opcao de entrega.",
+        error instanceof Error ? error.message : "Não foi possível salvar a opção de entrega.",
       );
     } finally {
       setIsSalvandoEntrega(false);
@@ -675,7 +675,7 @@ export function PerfilUsuarioPage() {
       }
     } catch (error) {
       setEntregaErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel remover a opcao de entrega.",
+        error instanceof Error ? error.message : "Não foi possível remover a opção de entrega.",
       );
     } finally {
       setEntregaRemovendoId(null);
@@ -832,12 +832,12 @@ export function PerfilUsuarioPage() {
     }
 
     if (!file.type.startsWith("image/")) {
-      setAvatarErroAcao("Selecione um arquivo de imagem valido.");
+      setAvatarErroAcao("Selecione um arquivo de imagem válido.");
       return;
     }
 
     if (file.size > MAX_AVATAR_FILE_SIZE) {
-      setAvatarErroAcao("Escolha uma imagem de ate 2 MB.");
+      setAvatarErroAcao("Escolha uma imagem de até 2 MB.");
       return;
     }
 
@@ -848,7 +848,7 @@ export function PerfilUsuarioPage() {
       setAvatarErroAcao("");
     } catch (error) {
       setAvatarErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel carregar a imagem.",
+        error instanceof Error ? error.message : "Não foi possível carregar a imagem.",
       );
     } finally {
       event.target.value = "";
@@ -930,7 +930,7 @@ export function PerfilUsuarioPage() {
       alert(temNovaImagem ? "Foto do perfil atualizada com sucesso!" : "Foto do perfil removida com sucesso!");
     } catch (error) {
       setAvatarErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel salvar a foto.",
+        error instanceof Error ? error.message : "Não foi possível salvar a foto.",
       );
     } finally {
       setIsSalvandoAvatar(false);
@@ -1011,12 +1011,12 @@ export function PerfilUsuarioPage() {
     }
 
     if (!file.type.startsWith("image/")) {
-      setProdutoErroAcao("Selecione um arquivo de imagem valido para o produto.");
+      setProdutoErroAcao("Selecione um arquivo de imagem válido para o produto.");
       return;
     }
 
     if (file.size > MAX_PRODUCT_IMAGE_FILE_SIZE) {
-      setProdutoErroAcao("Escolha uma imagem de ate 2 MB para o produto.");
+      setProdutoErroAcao("Escolha uma imagem de até 2 MB para o produto.");
       return;
     }
 
@@ -1031,7 +1031,7 @@ export function PerfilUsuarioPage() {
       setProdutoErroAcao("");
     } catch (error) {
       setProdutoErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel carregar a imagem do produto.",
+        error instanceof Error ? error.message : "Não foi possível carregar a imagem do produto.",
       );
     } finally {
       event.target.value = "";
@@ -1078,11 +1078,11 @@ export function PerfilUsuarioPage() {
       recarregarDados();
       setLojaFeedback({
         tone: "success",
-        message: `Produto "${nomeProduto}" excluido com sucesso. Ele nao aparece mais na vitrine, mas continua salvo no banco.`,
+        message: `Produto "${nomeProduto}" excluído com sucesso. Ele não aparece mais na vitrine, mas continua salvo no banco.`,
       });
     } catch (error) {
       setProdutoErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel excluir o produto.",
+        error instanceof Error ? error.message : "Não foi possível excluir o produto.",
       );
     } finally {
       setIsRemovendoProduto(false);
@@ -1111,7 +1111,7 @@ export function PerfilUsuarioPage() {
       const estoque = Number(produtoForm.estoque);
 
       if (!Number.isInteger(estoque) || estoque < 0) {
-        throw new Error("Informe um estoque valido para o produto.");
+        throw new Error("Informe um estoque válido para o produto.");
       }
 
       const payload: ProdutoMutacaoPayload = {
@@ -1143,7 +1143,7 @@ export function PerfilUsuarioPage() {
 
           if (midiasConfirmadas.length === 0) {
             throw new Error(
-              "A API salvou os dados do produto, mas nao confirmou a imagem publica. Verifique o endpoint de midias da API.",
+              "A API salvou os dados do produto, mas não confirmou a imagem pública. Verifique o endpoint de mídias da API.",
             );
           }
 
@@ -1187,7 +1187,7 @@ export function PerfilUsuarioPage() {
       alert(produtoForm.id ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!");
     } catch (error) {
       setProdutoErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel salvar o produto.",
+        error instanceof Error ? error.message : "Não foi possível salvar o produto.",
       );
     } finally {
       setIsSalvandoProduto(false);
@@ -1231,7 +1231,7 @@ export function PerfilUsuarioPage() {
       ];
 
       if (encontrarTelefoneDuplicado(telefonesParaValidar)) {
-        throw new Error("Esse numero de telefone ja esta cadastrado no perfil.");
+        throw new Error("Esse número de telefone já está cadastrado no perfil.");
       }
 
       const telefoneLojaRemovido =
@@ -1246,13 +1246,13 @@ export function PerfilUsuarioPage() {
 
       if (telefoneLojaRemovido && !telefoneSubstitutoId) {
         throw new Error(
-          "Nao e possivel remover o telefone usado pela loja sem manter outro telefone ja salvo no perfil.",
+          "Não á possivel remover o telefone usado pela loja sem manter outro telefone já salvo no perfil.",
         );
       }
 
       if (telefoneLojaRemovido && !enderecoPrincipalId) {
         throw new Error(
-          "Nao foi possivel atualizar a loja automaticamente porque nenhum endereco principal valido foi encontrado.",
+          "Não foi possível atualizar a loja automaticamente porque nenhum endereço principal válido foi encontrado.",
         );
       }
 
@@ -1338,7 +1338,7 @@ export function PerfilUsuarioPage() {
       alert("Perfil atualizado com sucesso!");
     } catch (error) {
       setPerfilErroAcao(
-        error instanceof Error ? error.message : "Nao foi possivel atualizar o perfil.",
+        error instanceof Error ? error.message : "Não foi possível atualizar o perfil.",
       );
     } finally {
       setIsSalvandoPerfil(false);
@@ -1354,7 +1354,7 @@ export function PerfilUsuarioPage() {
 
     if (!usuario.enderecoPrincipalId || !usuario.telefonePrincipalId) {
       setLojaErroAcao(
-        "Cadastre um telefone e um endereco principal no perfil antes de continuar.",
+        "Cadastre um telefone e um endereço principal no perfil antes de continuar.",
       );
       return;
     }
@@ -1482,8 +1482,8 @@ export function PerfilUsuarioPage() {
                 title={visaoAtiva === "loja" ? "Desempenho da loja" : "Minha atividade"}
                 description={
                   visaoAtiva === "loja"
-                    ? "Resumo rapido da operacao da loja para orientar vitrine, vendas e receita."
-                    : "Resumo rapido da conta de comprador com seus dados principais."
+                    ? "Resumo rápido da operação da loja para orientar vitrine, vendas e receita."
+                    : "Resumo rápido da conta de comprador com seus dados principais."
                 }
                 stats={statsAtivos}
               />
@@ -1553,7 +1553,7 @@ export function PerfilUsuarioPage() {
                       }
                       description={
                         estaFiltrandoCategoria
-                          ? "Selecione outra categoria ou adicione um novo produto para preencher essa secao."
+                          ? "Selecione outra categoria ou adicione um novo produto para preencher essa seção."
                           : tabContent.vazioDescricao
                       }
                     />
@@ -1662,7 +1662,7 @@ export function PerfilUsuarioPage() {
       />
 
       <ModalLojaPerfil
-        descricao="Use seus dados principais de endereco e telefone para liberar a loja rapidamente."
+        descricao="Use seus dados principais de endereço e telefone para liberar a loja rapidamente."
         isOpen={modalAberto === "loja"}
         isSalvandoLoja={isSalvandoLoja}
         lojaErroAcao={lojaErroAcao}

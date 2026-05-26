@@ -85,22 +85,22 @@ const METODOS_PAGAMENTO: MetodoPagamento[] = [
   {
     id: "pix",
     titulo: "PIX",
-    descricao: "Confirmacao rapida apos a finalizacao da compra.",
+    descricao: "Confirmação rápida após a finalização da compra.",
   },
   {
     id: "credito",
-    titulo: "Cartao de credito",
+    titulo: "Cartão de crédito",
     descricao: "Ideal para parcelamento e pagamentos online.",
   },
   {
     id: "debito",
-    titulo: "Cartao de debito",
-    descricao: "Debito imediato com validacao simples.",
+    titulo: "Cartao de débito",
+    descricao: "Débito imediato com validação simples.",
   },
   {
     id: "boleto",
-    titulo: "Boleto bancario",
-    descricao: "Ainda nao disponivel na API atual.",
+    titulo: "Boleto bancário",
+    descricao: "Ainda não disponivel na API atual.",
   },
 ];
 
@@ -287,19 +287,19 @@ function formatarMoeda(valor: number) {
 
 function formatarPrazoEntrega(prazoEntregaDias: number) {
   if (prazoEntregaDias <= 0) {
-    return "Disponivel imediatamente";
+    return "Disponivél imediatamente";
   }
 
   if (prazoEntregaDias === 1) {
-    return "Receba em ate 1 dia util";
+    return "Receba em até 1 dia útil";
   }
 
-  return `Receba em ate ${prazoEntregaDias} dias uteis`;
+  return `Receba em até ${prazoEntregaDias} dias úteis`;
 }
 
 function formatarDescricaoEntregaLoja(opcaoEntrega: LojaEntregaOpcao | null) {
   if (!opcaoEntrega) {
-    return "Selecione uma opcao de entrega";
+    return "Selecione uma opção de entrega";
   }
 
   return `${opcaoEntrega.nome} - ${formatarPrazoEntrega(opcaoEntrega.prazoEntregaDias)}`;
@@ -537,7 +537,7 @@ export function PagamentPage() {
         const message =
           error instanceof Error
             ? error.message
-            : "Nao foi possivel carregar os dados do usuario.";
+            : "Não foi possível carregar os dados do usuário.";
         setErro(message);
       }
     }
@@ -566,7 +566,7 @@ export function PagamentPage() {
       setOpcoesEntregaPorLoja({});
       setFretesSelecionadosPorLoja({});
       setErrosEntregaPorLoja({
-        0: "Nao foi possivel identificar a loja de um ou mais itens do carrinho.",
+        0: "Não foi possível identificar a loja de um ou mais itens do carrinho.",
       });
       setIsLoadingEntregas(false);
       return () => {
@@ -600,7 +600,7 @@ export function PagamentPage() {
                 erro:
                   error instanceof Error
                     ? error.message
-                    : "Nao foi possivel carregar as opcoes de entrega da loja.",
+                    : "Não foi possível carregar as opções de entrega da loja.",
               };
             }
           }),
@@ -623,13 +623,13 @@ export function PagamentPage() {
 
           if (resposta.opcoes.length === 0) {
             proximosErros[resposta.lojaId] =
-              "Esta loja ainda nao configurou opcoes de entrega para o checkout.";
+              "Está loja ainda não configurou opções de entrega para o checkout.";
             continue;
           }
 
           if (!resposta.opcoes.some((opcao) => opcao.tipoEntregaId)) {
             proximosErros[resposta.lojaId] =
-              "As opcoes de entrega desta loja ainda nao possuem um tipo compativel com o checkout atual.";
+              "As opções de entrega desta loja ainda não possuem um tipo compativel com o checkout atual.";
           }
         }
 
@@ -766,7 +766,7 @@ export function PagamentPage() {
       }
     } catch (error) {
       setErro(
-        error instanceof Error ? error.message : "Nao foi possivel remover o endereco.",
+        error instanceof Error ? error.message : "Não foi possível remover o endereço.",
       );
     } finally {
       setIsRemovingAddress(null);
@@ -807,7 +807,7 @@ export function PagamentPage() {
 
     if (!enderecoEstaCompleto(enderecoForm)) {
       throw new Error(
-        "Preencha tipo de logradouro, nome do endereco, CEP, cidade, numero e UF para usar um novo endereco.",
+        "Preencha o tipo de logradouro, nome do endereço, CEP, cidade, número e UF para usar um novo endereço.",
       );
     }
 
@@ -868,24 +868,24 @@ export function PagamentPage() {
     }
 
     if (carrinhoItens.length === 0) {
-      setErro("Seu carrinho esta vazio.");
+      setErro("Seu carrinho está vazio.");
       return;
     }
 
     if (carrinhoTemLojasInvalidas) {
-      setErro("Nao foi possivel identificar a loja de um ou mais itens do carrinho.");
+      setErro("Não foi possível identificar a loja de um ou mais itens do carrinho.");
       return;
     }
 
     if (!checkoutTemEntregasValidas) {
-      setErro("Selecione uma opcao de entrega valida para cada loja antes de finalizar a compra.");
+      setErro("Selecione uma opção de entrega válida para cada loja antes de finalizar a compra.");
       return;
     }
 
     const formaPagamentoId = mapearFormaPagamentoId();
 
     if (!formaPagamentoId) {
-      setErro("O metodo de pagamento selecionado ainda nao esta disponivel na API.");
+      setErro("O método de pagamento selecionado ainda não esta disponivel na API.");
       return;
     }
 
@@ -909,7 +909,7 @@ export function PagamentPage() {
       const enderecoId = await resolverEnderecoId();
 
       if (!enderecoId) {
-        throw new Error("Cadastre ou selecione um endereco de entrega antes de continuar.");
+        throw new Error("Cadastre ou selecione um endereço de entrega antes de continuar.");
       }
 
       for (const grupo of gruposCarrinhoValidos) {
@@ -919,7 +919,7 @@ export function PagamentPage() {
 
         if (!opcaoEntregaSelecionada?.tipoEntregaId) {
           throw new Error(
-            `Selecione uma opcao de entrega valida para a loja ${grupo.lojaNome} antes de finalizar a compra.`,
+            `Selecione uma opção de entrega válida para a loja ${grupo.lojaNome} antes de finalizar a compra.`,
           );
         }
 
@@ -997,7 +997,7 @@ export function PagamentPage() {
       }
 
       const message =
-        error instanceof Error ? error.message : "Nao foi possivel finalizar a compra.";
+        error instanceof Error ? error.message : "Não foi possível finalizar a compra.";
       setErro(
         pedidosProcessados.length > 0
           ? `Parte da compra ja foi processada para outras lojas. ${message}`
@@ -1020,7 +1020,7 @@ export function PagamentPage() {
                 </span>
                 <h2 className="mt-2 text-2xl font-semibold text-white">Produtos selecionados</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Confira os itens da compra antes de seguir para endereco, entrega e pagamento.
+                  Confira os itens da compra antes de seguir para endereço, entrega e pagamento.
                 </p>
               </div>
 
@@ -1070,7 +1070,7 @@ export function PagamentPage() {
                                 {item.nome}
                               </p>
                               <p className="mt-1 text-sm text-zinc-400">
-                                Valor unitario: {formatarMoeda(item.preco)}
+                                Valor unitário: {formatarMoeda(item.preco)}
                               </p>
                               <p className="mt-1 text-sm text-zinc-400">
                                 Quantidade: {item.quantidade}
@@ -1101,7 +1101,7 @@ export function PagamentPage() {
                     </span>
                     <h2 className="text-2xl font-semibold text-white">Enderecos</h2>
                     <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                      Revise os enderecos atuais e use o `+` para abrir mais um cadastro.
+                      Revise os endereços atuais e use o `+` para abrir mais um cadastro.
                     </p>
                   </div>
 
@@ -1184,7 +1184,7 @@ export function PagamentPage() {
                     })
                   ) : (
                     <div className="rounded-2xl border border-dashed border-yellow-400/20 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
-                      Nenhum endereco ativo foi encontrado no seu perfil. Cadastre o primeiro para
+                      Nenhum endereço ativo foi encontrado no seu perfil. Cadastre o primeiro para
                       concluir a compra.
                     </div>
                   )}
@@ -1243,7 +1243,7 @@ export function PagamentPage() {
                         <Input
                           id="nomeEndereco"
                           name="nomeEndereco"
-                          label="Nome do endereco"
+                          label="Nome do endereço"
                           value={enderecoForm.nomeEndereco}
                           onChange={handleEnderecoChange}
                           className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
@@ -1251,7 +1251,7 @@ export function PagamentPage() {
                         <Input
                           id="numero"
                           name="numero"
-                          label="Numero"
+                          label="Número"
                           inputMode="numeric"
                           value={enderecoForm.numero}
                           onChange={handleEnderecoChange}
@@ -1298,7 +1298,7 @@ export function PagamentPage() {
 
                       {temEnderecoSalvo ? (
                         <p className="mt-4 text-sm text-zinc-400">
-                          Se voce cancelar este formulario, o checkout volta a usar o endereco
+                          Se você cancelar este formulário, o checkout volta a usar o endereço
                           selecionado acima.
                         </p>
                       ) : null}
@@ -1319,7 +1319,7 @@ export function PagamentPage() {
                   <span className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-400/80">
                     Etapa 2
                   </span>
-                  <h2 className="text-2xl font-semibold text-white">Opcoes de entrega</h2>
+                  <h2 className="text-2xl font-semibold text-white">Opções de entrega</h2>
                   <p className="text-sm leading-6 text-zinc-400">
                     Escolha a modalidade que melhor se encaixa no seu prazo e preferencia.
                   </p>
@@ -1338,13 +1338,13 @@ export function PagamentPage() {
                 <fieldset className="space-y-4">
                   {isLoadingEntregas ? (
                     <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-5 text-sm text-zinc-300">
-                      Carregando opcoes de entrega de cada loja...
+                      Carregando opções de entrega de cada loja...
                     </div>
                   ) : null}
 
                   {carrinhoTemLojasInvalidas ? (
                     <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
-                      Nao foi possivel identificar a loja de um ou mais itens do carrinho.
+                      Não foi possível identificar a loja de um ou mais itens do carrinho.
                     </div>
                   ) : null}
 
@@ -1510,7 +1510,7 @@ export function PagamentPage() {
                       required
                       id="numero-cartao"
                       name="numero-cartao"
-                      label="Numero do cartao"
+                      label="Número do cartão"
                       placeholder="0000 0000 0000 0000"
                       inputMode="numeric"
                       autoComplete="cc-number"
@@ -1531,8 +1531,8 @@ export function PagamentPage() {
                     required
                     id="nome-cartao"
                     name="nome-cartao"
-                    label="Nome impresso no cartao"
-                    placeholder="Como aparece no cartao"
+                    label="Nome impresso no cartão"
+                    placeholder="Como aparece no cartão"
                     autoComplete="cc-name"
                     className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
                   />
@@ -1542,7 +1542,7 @@ export function PagamentPage() {
               {metodo === "pix" ? (
                 <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-black/30 p-4">
                   <p className="text-sm leading-6 text-neutral-400">
-                    O pagamento fake sera confirmado automaticamente ao finalizar a compra.
+                    O pagamento fake será confirmado automaticamente ao finalizar a compra.
                   </p>
                 </div>
               ) : null}
@@ -1554,7 +1554,7 @@ export function PagamentPage() {
                       required
                       id="numero-cartao"
                       name="numero-cartao"
-                      label="Numero do cartao"
+                      label="Numero do cartão"
                       placeholder="0000 0000 0000 0000"
                       inputMode="numeric"
                       autoComplete="cc-number"
@@ -1575,8 +1575,8 @@ export function PagamentPage() {
                     required
                     id="nome-cartao"
                     name="nome-cartao"
-                    label="Nome impresso no cartao"
-                    placeholder="Como aparece no cartao"
+                    label="Nome impresso no cartão"
+                    placeholder="Como aparece no cartão"
                     autoComplete="cc-name"
                     className="h-12 rounded-2xl border-white/10 bg-black/40 px-4 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20"
                   />
@@ -1592,7 +1592,7 @@ export function PagamentPage() {
               <div className="border-b border-white/10 pb-4">
                 <h2 className="text-xl font-semibold">Totais do pedido</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  Este bloco acompanha a rolagem para voce revisar subtotal, frete e total a
+                  Este bloco acompanha a rolagem para você revisar subtotal, frete e total a
                   qualquer momento.
                 </p>
               </div>

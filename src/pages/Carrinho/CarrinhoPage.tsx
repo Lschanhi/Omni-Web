@@ -48,7 +48,7 @@ export function CarrinhoPage() {
             <section className="flex min-h-[420px] flex-col items-center justify-center gap-6 rounded-[32px] border border-dashed border-white/10 bg-[linear-gradient(180deg,_rgba(255,255,255,0.04),_rgba(255,255,255,0.02))] px-6 py-12 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
               <div className="space-y-3">
                 <h2 className="text-2xl font-semibold text-white">
-                  Faca login para acessar seu carrinho
+                  Faça login para acessar seu carrinho
                 </h2>
                 <p className="max-w-md text-sm leading-6 text-neutral-400">
                   O carrinho precisa da sua conta autenticada para sincronizar os
@@ -88,7 +88,7 @@ export function CarrinhoPage() {
 
               <div className="space-y-2">
                 <h2 className="text-2xl font-semibold text-white">
-                  Seu carrinho esta vazio.
+                  Seu carrinho está vazio.
                 </h2>
                 <p className="max-w-md text-sm leading-6 text-neutral-400">
                   Explore a loja e adicione produtos para montar seu pedido.

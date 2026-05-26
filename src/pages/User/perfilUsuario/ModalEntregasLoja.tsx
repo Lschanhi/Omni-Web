@@ -62,7 +62,7 @@ export function ModalEntregasLoja({
             <div>
               <h3 className="text-base font-semibold text-white">Entregas cadastradas</h3>
               <p className="text-sm text-neutral-400">
-                Edite as modalidades da sua loja ou crie uma nova opcao de frete.
+                Edite as modalidades da sua loja ou crie uma nova opção de frete.
               </p>
             </div>
 
@@ -73,7 +73,7 @@ export function ModalEntregasLoja({
               className="h-11 sm:w-auto sm:px-5"
               icon={<Plus className="h-4 w-4" />}
             >
-              Nova opcao
+              Nova opção
             </Botao>
           </div>
 
@@ -160,7 +160,7 @@ export function ModalEntregasLoja({
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-yellow-400/25 bg-yellow-400/5 px-4 py-5 text-sm text-zinc-300">
-              Nenhuma opcao de entrega foi cadastrada ainda. Use o formulario abaixo para criar a
+              Nenhuma opção de entrega foi cadastrada ainda. Use o formulário abaixo para criar a
               primeira.
             </div>
           )}
@@ -185,7 +185,7 @@ export function ModalEntregasLoja({
                   onClick={handleCancelarEntrega}
                   className="h-11 sm:w-auto sm:px-5"
                 >
-                  Nova opcao
+                  Nova opção
                 </Botao>
               ) : null}
             </div>
@@ -252,7 +252,7 @@ export function ModalEntregasLoja({
 
             <div className="space-y-2">
               <label htmlFor="entregaObservacao" className="text-[#6b6b6b]">
-                Observacao
+                Observação
               </label>
               <textarea
                 id="entregaObservacao"
@@ -272,7 +272,7 @@ export function ModalEntregasLoja({
                 onChange={onToggleEntregaAtiva}
                 className="h-4 w-4 cursor-pointer accent-yellow-500"
               />
-              Opcao ativa no checkout da loja
+              Opção ativa no checkout da loja
             </label>
           </section>
 

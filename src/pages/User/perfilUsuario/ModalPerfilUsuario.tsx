@@ -75,7 +75,7 @@ export function ModalPerfilUsuario({
     <ProfileModal
       isOpen={isOpen}
       title="Editar perfil"
-      description="Atualize os dados basicos da sua conta sem sair da pagina de perfil."
+      description="Atualize os dados básicos da sua conta sem sair da página de perfil."
       onClose={onClose}
     >
       <form className="space-y-5" onSubmit={onSubmit}>
@@ -185,7 +185,7 @@ export function ModalPerfilUsuario({
                 </div>
 
                 <Input
-                  label="Numero"
+                  label="Número"
                   id={`telefone-${index}`}
                   name={`telefone-${index}`}
                   placeholder="(11) 97777-7932"
@@ -244,7 +244,7 @@ export function ModalPerfilUsuario({
             <div>
               <h3 className="text-base font-semibold text-white">Enderecos</h3>
               <p className="text-sm text-neutral-400">
-                Revise os enderecos atuais e use o `+` para abrir mais um cadastro.
+                Revise os endereços atuais e use o `+` para abrir mais um cadastro.
               </p>
             </div>
 
@@ -272,7 +272,7 @@ export function ModalPerfilUsuario({
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-white">
                     <MapPin className="h-4 w-4 text-yellow-400" />
-                    <span>Endereco {index + 1}</span>
+                    <span>Endereço {index + 1}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -399,7 +399,7 @@ export function ModalPerfilUsuario({
                 <div className="mb-4 flex items-center justify-between gap-3 text-sm font-medium text-white">
                   <div className="flex items-center gap-2">
                     <Plus className="h-4 w-4 text-yellow-400" />
-                    <span>Novo endereco</span>
+                    <span>Novo endereço</span>
                   </div>
 
                   <div className="flex items-center gap-2">

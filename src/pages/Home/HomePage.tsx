@@ -152,7 +152,7 @@ export function HomePage() {
             <div className="relative overflow-hidden">
               <Banner
                 titulo="Semana OmniMarket com descontos em tecnologia, moda e casa"
-                descricao="Use esta secao para destacar campanhas sazonais, vitrines patrocinadas ou produtos lideres de conversao quando a API estiver conectada."
+                descricao="Use esta seção para destacar campanhas sazonais, vitrines patrocinadas ou produtos líderes de conversão quando a API estiver conectada."
                 imagem={createMockImage("Semana OmniMarket", "#eab308", "#111827")}
               />
             </div>
@@ -169,14 +169,14 @@ export function HomePage() {
               <div className="space-y-2">
                 <h2 className="text-2xl font-semibold text-white">Produtos em destaque</h2>
                 <p className="text-sm text-neutral-400">
-                  A listagem abaixo ja vem da API e continua pronta para receber
-                  filtros do back-end e proximas evolucoes de paginacao.
+                  A listagem abaixo já vem da API e continua pronta para receber
+                  filtros do back-end e proximas evoluções de paginação.
                 </p>
               </div>
 
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-neutral-300">
                 <ArrowDownWideNarrow className="h-4 w-4 text-yellow-400" />
-                Ordenacao: mais relevantes
+                Ordenação: mais relevantes
               </div>
             </div>
 

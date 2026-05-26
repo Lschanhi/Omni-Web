@@ -37,7 +37,7 @@ export function ProdutoPage() {
         if (isMounted) {
           if (response.disponivel === false) {
             setProduto(null);
-            setErro("Este produto nao esta mais disponivel na vitrine.");
+            setErro("Este produto não esta mais disponivel na vitrine.");
             return;
           }
 
@@ -50,7 +50,7 @@ export function ProdutoPage() {
         }
 
         const message =
-          error instanceof Error ? error.message : "Nao foi possivel carregar o produto.";
+          error instanceof Error ? error.message : "Não foi possivel carregar o produto.";
         setErro(message);
       } finally {
         if (isMounted) {
@@ -82,7 +82,7 @@ export function ProdutoPage() {
       alert("Produto adicionado ao carrinho com sucesso!");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Nao foi possivel adicionar o produto.";
+        error instanceof Error ? error.message : "Não foi possível adicionar o produto.";
       alert(message);
 
       if (message.toLowerCase().includes("login")) {
@@ -113,7 +113,7 @@ export function ProdutoPage() {
             </span>
 
             <h1 className="mt-4 text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight text-white">
-              Produto nao encontrado
+              Produto não encontrado
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-neutral-300 sm:text-base">
@@ -156,7 +156,7 @@ export function ProdutoPage() {
                       </h1>
 
                       <p className="text-sm text-neutral-400 sm:text-base">
-                        Codigo do produto:{" "}
+                        Código do produto:{" "}
                         <span className="font-medium text-neutral-200">{produto.id}</span>
                       </p>
 
@@ -170,7 +170,7 @@ export function ProdutoPage() {
 
                   <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5 sm:p-6">
                     <p className="text-sm uppercase tracking-[0.24em] text-yellow-200/80">
-                      Preco
+                      Preço
                     </p>
 
                     <p className="mt-2 text-[clamp(2rem,4vw,3.5rem)] font-bold leading-none text-yellow-400">
@@ -181,7 +181,7 @@ export function ProdutoPage() {
                     </p>
 
                     <p className="mt-4 text-sm text-neutral-300">
-                      Avaliacao media:{" "}
+                      Avaliação media:{" "}
                       <span className="font-semibold text-white">
                         {produto.avaliacao.toFixed(1)} / 5
                       </span>
