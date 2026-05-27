@@ -129,35 +129,25 @@ import {
 } from "./perfilUsuario/utilitarios";
 
 const ROTULO_STATUS_VENDA: Record<PerfilPedidoStatusFluxo, string> = {
+  pendente: "Pendente",
   "em-separacao": "Em separacao",
-  pronto: "Pronto",
+  pronto: "Pago",
   enviado: "Enviado",
   finalizado: "Finalizado",
   cancelado: "Cancelado",
 };
 
-const PROXIMO_STATUS_VENDA: Record<PerfilPedidoStatusFluxo, PerfilPedidoStatusFluxo | null> = {
-  "em-separacao": "pronto",
-  pronto: "enviado",
-  enviado: "finalizado",
-  finalizado: null,
-  cancelado: null,
-};
-
-function criarSubtituloPedido(pedido: PerfilPedidoDetalhe) {
-  return `${pedido.status} - ${pedido.tipoEntrega}`;
-}
-
 function criarFiltrosStatusVenda(itens: PerfilGridItem[]): PerfilVendaStatusFiltroItem[] {
   const totais = itens.reduce<Record<PerfilPedidoStatusFluxo, number>>(
     (acumulador, item) => {
-      const statusKey = item.pedido?.statusFluxoKey ?? "em-separacao";
+      const statusKey = item.pedido?.statusFluxoKey ?? "pendente";
 
       acumulador[statusKey] += 1;
 
       return acumulador;
     },
     {
+      pendente: 0,
       "em-separacao": 0,
       pronto: 0,
       enviado: 0,
@@ -168,8 +158,8 @@ function criarFiltrosStatusVenda(itens: PerfilGridItem[]): PerfilVendaStatusFilt
 
   return [
     { key: "todos", label: "Todos", total: itens.length },
-    { key: "em-separacao", label: "Em separacao", total: totais["em-separacao"] },
-    { key: "pronto", label: "Pronto", total: totais.pronto },
+    { key: "pendente", label: "Pendente", total: totais.pendente },
+    { key: "pronto", label: "Pago", total: totais.pronto },
     { key: "enviado", label: "Enviado", total: totais.enviado },
     { key: "finalizado", label: "Finalizado", total: totais.finalizado },
     { key: "cancelado", label: "Cancelado", total: totais.cancelado },
@@ -178,18 +168,13 @@ function criarFiltrosStatusVenda(itens: PerfilGridItem[]): PerfilVendaStatusFilt
 
 function atualizarCardPedidoVenda(
   item: PerfilGridItem,
-  pedidoAtualizado: PerfilPedidoDetalhe,
+  itemAtualizado: PerfilGridItem,
 ): PerfilGridItem {
-  if (item.pedido?.pedidoId !== pedidoAtualizado.pedidoId) {
+  if (item.pedido?.pedidoId !== itemAtualizado.pedido?.pedidoId) {
     return item;
   }
 
-  return {
-    ...item,
-    subtitulo: criarSubtituloPedido(pedidoAtualizado),
-    descricao: pedidoAtualizado.observacao,
-    pedido: pedidoAtualizado,
-  };
+  return itemAtualizado;
 }
 
 export function PerfilUsuarioPage() {
@@ -207,6 +192,8 @@ export function PerfilUsuarioPage() {
     conteudoError,
     setAbaAtiva,
     sincronizarProdutoLojaLocal,
+    buscarDetalhePedidoVenda,
+    atualizarPedidoVendaStatus,
     recarregarDados,
   } = usePerfilUsuarioData();
   const {
@@ -305,8 +292,9 @@ export function PerfilUsuarioPage() {
   const [pedidosVendaLocais, setPedidosVendaLocais] = useState<PerfilGridItem[]>([]);
   const [filtroStatusVendaAtivo, setFiltroStatusVendaAtivo] =
     useState<PerfilFiltroStatusVendaId>("todos");
+  const [isCarregandoPedidoVenda, setIsCarregandoPedidoVenda] = useState(false);
+  const [isAtualizandoPedidoVenda, setIsAtualizandoPedidoVenda] = useState(false);
   const [isDialogoCancelamentoVendaAberto, setIsDialogoCancelamentoVendaAberto] = useState(false);
-  const [motivoCancelamentoVenda, setMotivoCancelamentoVenda] = useState("");
   const isBuyerOrdersTab = visaoAtiva === "comprador" && abaAtivaResolvida === "compras";
   const tabContent: PerfilTabContent = {
     ...METADADOS_ABAS[abaAtivaResolvida],
@@ -382,7 +370,6 @@ export function PerfilUsuarioPage() {
     if (!isStoreSalesTab) {
       setFiltroStatusVendaAtivo("todos");
       setIsDialogoCancelamentoVendaAberto(false);
-      setMotivoCancelamentoVenda("");
     }
   }, [isStoreSalesTab]);
 
@@ -460,7 +447,8 @@ export function PerfilUsuarioPage() {
 
   function fecharModal() {
     setIsDialogoCancelamentoVendaAberto(false);
-    setMotivoCancelamentoVenda("");
+    setIsCarregandoPedidoVenda(false);
+    setIsAtualizandoPedidoVenda(false);
     setPedidoSelecionado(null);
     fecharModalLocal();
   }
@@ -563,15 +551,33 @@ export function PerfilUsuarioPage() {
 
     setPedidoSelecionado(item.pedido);
     setIsDialogoCancelamentoVendaAberto(false);
-    setMotivoCancelamentoVenda(item.pedido.motivoCancelamento ?? "");
     setModalAberto("pedido");
+    setIsCarregandoPedidoVenda(true);
+
+    void (async () => {
+      try {
+        const itemAtualizado = await buscarDetalhePedidoVenda(item.pedido!.pedidoId);
+
+        if (itemAtualizado?.pedido) {
+          sincronizarPedidoVendaLocal(itemAtualizado);
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel carregar os detalhes atualizados da venda.",
+        );
+      } finally {
+        setIsCarregandoPedidoVenda(false);
+      }
+    })();
   }
 
-  function sincronizarPedidoVendaLocal(pedidoAtualizado: PerfilPedidoDetalhe) {
+  function sincronizarPedidoVendaLocal(itemAtualizado: PerfilGridItem) {
     setPedidosVendaLocais((pedidosAtuais) =>
-      pedidosAtuais.map((item) => atualizarCardPedidoVenda(item, pedidoAtualizado)),
+      pedidosAtuais.map((item) => atualizarCardPedidoVenda(item, itemAtualizado)),
     );
-    setPedidoSelecionado(pedidoAtualizado);
+    setPedidoSelecionado(itemAtualizado.pedido ?? null);
   }
 
   function handleConfirmarRecebimentoPedido(pedido: PerfilPedidoDetalhe) {
@@ -586,56 +592,68 @@ export function PerfilUsuarioPage() {
     );
   }
 
-  function handleAvancarStatusPedidoVenda(pedido: PerfilPedidoDetalhe) {
-    const proximoStatus = PROXIMO_STATUS_VENDA[pedido.statusFluxoKey];
-
-    if (!proximoStatus) {
+  async function handleAvancarStatusPedidoVenda(pedido: PerfilPedidoDetalhe) {
+    if (isAtualizandoPedidoVenda || !pedido.podeMarcarComoEnviado) {
       return;
     }
 
-    const pedidoAtualizado: PerfilPedidoDetalhe = {
-      ...pedido,
-      statusFluxoKey: proximoStatus,
-      status: ROTULO_STATUS_VENDA[proximoStatus],
-    };
+    try {
+      setIsAtualizandoPedidoVenda(true);
+      const { mensagem, item } = await atualizarPedidoVendaStatus(pedido.pedidoId, "Enviada");
 
-    sincronizarPedidoVendaLocal(pedidoAtualizado);
-    toast.success(
-      `Pedido #${pedido.pedidoId} movido para ${ROTULO_STATUS_VENDA[proximoStatus]}. Falta apenas persistir essa acao na API.`,
-    );
+      if (item?.pedido) {
+        sincronizarPedidoVendaLocal(item);
+      }
+
+      toast.success(mensagem);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel atualizar o status da venda.",
+      );
+    } finally {
+      setIsAtualizandoPedidoVenda(false);
+    }
   }
 
   function handleAbrirCancelamentoPedidoVenda(pedido: PerfilPedidoDetalhe) {
+    if (!pedido.podeCancelar) {
+      return;
+    }
+
     setPedidoSelecionado(pedido);
-    setMotivoCancelamentoVenda(pedido.motivoCancelamento ?? "");
     setIsDialogoCancelamentoVendaAberto(true);
   }
 
-  function handleConfirmarCancelamentoPedidoVenda() {
-    if (!pedidoSelecionado || pedidoSelecionado.contexto !== "venda") {
+  async function handleConfirmarCancelamentoPedidoVenda() {
+    if (
+      !pedidoSelecionado ||
+      pedidoSelecionado.contexto !== "venda" ||
+      isAtualizandoPedidoVenda ||
+      !pedidoSelecionado.podeCancelar
+    ) {
       return;
     }
 
-    const motivoNormalizado = motivoCancelamentoVenda.trim();
+    try {
+      setIsAtualizandoPedidoVenda(true);
+      const { mensagem, item } = await atualizarPedidoVendaStatus(
+        pedidoSelecionado.pedidoId,
+        "Cancelada",
+      );
 
-    if (!motivoNormalizado) {
-      toast.error("Descreva o motivo do cancelamento antes de continuar.");
-      return;
+      if (item?.pedido) {
+        sincronizarPedidoVendaLocal(item);
+      }
+
+      setIsDialogoCancelamentoVendaAberto(false);
+      toast.success(mensagem);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel cancelar a venda.",
+      );
+    } finally {
+      setIsAtualizandoPedidoVenda(false);
     }
-
-    const pedidoAtualizado: PerfilPedidoDetalhe = {
-      ...pedidoSelecionado,
-      statusFluxoKey: "cancelado",
-      status: ROTULO_STATUS_VENDA.cancelado,
-      motivoCancelamento: motivoNormalizado,
-      observacao: motivoNormalizado,
-    };
-
-    sincronizarPedidoVendaLocal(pedidoAtualizado);
-    setIsDialogoCancelamentoVendaAberto(false);
-    toast.success(
-      `Pedido #${pedidoSelecionado.pedidoId} marcado como cancelado. Falta integrar essa justificativa na API.`,
-    );
   }
 
   function handleAlternarModoExclusaoCategorias() {
@@ -1894,8 +1912,10 @@ export function PerfilUsuarioPage() {
       />
 
       <ModalPedidoVenda
-        descricao="Abra o pedido para revisar os itens, ler a descricao e avancar o status operacional da venda."
+        descricao="Abra o pedido para revisar os itens vendidos, consultar o status real da venda e acionar as mudancas permitidas pelo backend."
         isOpen={modalAberto === "pedido" && pedidoSelecionado?.contexto === "venda"}
+        isCarregandoPedido={isCarregandoPedidoVenda}
+        isAtualizandoPedido={isAtualizandoPedidoVenda}
         pedido={pedidoSelecionado?.contexto === "venda" ? pedidoSelecionado : null}
         onAvancarStatus={handleAvancarStatusPedidoVenda}
         onCancelarPedido={handleAbrirCancelamentoPedidoVenda}
@@ -1904,8 +1924,7 @@ export function PerfilUsuarioPage() {
 
       <DialogoCancelarPedidoVenda
         isOpen={isDialogoCancelamentoVendaAberto}
-        motivo={motivoCancelamentoVenda}
-        onChangeMotivo={setMotivoCancelamentoVenda}
+        isProcessando={isAtualizandoPedidoVenda}
         onClose={() => setIsDialogoCancelamentoVendaAberto(false)}
         onConfirm={handleConfirmarCancelamentoPedidoVenda}
         pedido={pedidoSelecionado?.contexto === "venda" ? pedidoSelecionado : null}
