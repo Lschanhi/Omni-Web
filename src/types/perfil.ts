@@ -78,6 +78,7 @@ export interface PerfilStatCardItem {
 }
 
 export type PerfilPedidoStatusFluxo =
+  | "pendente"
   | "em-separacao"
   | "pronto"
   | "enviado"
@@ -87,7 +88,7 @@ export type PerfilPedidoStatusFluxo =
 export type PerfilFiltroStatusVendaId = "todos" | PerfilPedidoStatusFluxo;
 
 export interface PerfilVendaStatusItem {
-  key: "em-separacao" | "pronto" | "enviado" | "finalizado";
+  key: "pendente" | "em-separacao" | "pronto" | "enviado" | "finalizado";
   label: string;
   total: number;
   descricao: string;
@@ -116,8 +117,11 @@ export interface PerfilPedidoItem {
 
 export interface PerfilPedidoDetalhe {
   pedidoId: number;
+  vendaId?: number;
   contexto: "compra" | "venda";
   status: string;
+  statusPedido?: string;
+  statusVenda?: string | null;
   statusFluxoKey: PerfilPedidoStatusFluxo;
   tipoEntrega: string;
   dataPedido: string;
@@ -126,6 +130,12 @@ export interface PerfilPedidoDetalhe {
   subtotal: string;
   frete: string;
   total: string;
+  valorTotalPedido?: string;
+  pedidoMultiloja?: boolean;
+  podeCancelar?: boolean;
+  podeMarcarComoEnviado?: boolean;
+  nomeCliente?: string;
+  emailCliente?: string;
   motivoCancelamento?: string;
   itens: PerfilPedidoItem[];
 }

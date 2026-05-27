@@ -23,7 +23,16 @@ import {
   obterProdutoPorId,
 } from "../Services/produtos/produtoService";
 import { listarEnderecos } from "../Services/user/enderecoService";
-import { obterMinhaLoja, type LojaGestaoApiResponse } from "../Services/user/lojaService";
+import {
+  buscarPedidoDaMinhaLoja,
+  listarTodosPedidosDaMinhaLoja,
+  obterMinhaLoja,
+  atualizarStatusPedidoDaMinhaLoja,
+  type LojaGestaoApiResponse,
+  type LojaPedidoLeituraApiResponse,
+  type LojaPedidoStatusPedidoApi,
+  type LojaPedidoStatusVendaApi,
+} from "../Services/user/lojaService";
 import { formatarTelefoneParaExibicao } from "../Services/user/telefoneService";
 import {
   listarPedidosUsuario,
@@ -62,6 +71,12 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
 });
 
 const FLUXO_VENDAS_BASE: PerfilVendaStatusItem[] = [
+  {
+    key: "pendente",
+    label: "Pendente",
+    total: 0,
+    descricao: "Pedidos aguardando criacao ou confirmacao da venda financeira para a loja.",
+  },
   {
     key: "em-separacao",
     label: "Em separacao",
@@ -212,6 +227,10 @@ function resolverChaveFluxoVenda(status: string) {
     return null;
   }
 
+  if (["pendente", "aguardando pagamento", "aguardando confirmacao"].includes(statusNormalizado)) {
+    return "pendente" as const;
+  }
+
   if (
     [
       "pago",
@@ -281,22 +300,6 @@ function normalizarStatusFluxoVenda(status: string): PerfilPedidoStatusFluxo {
   return resolverChaveFluxoVenda(status) ?? "em-separacao";
 }
 
-function criarRotuloStatusFluxoVenda(status: PerfilPedidoStatusFluxo) {
-  switch (status) {
-    case "pronto":
-      return "Pronto";
-    case "enviado":
-      return "Enviado";
-    case "finalizado":
-      return "Finalizado";
-    case "cancelado":
-      return "Cancelado";
-    case "em-separacao":
-    default:
-      return "Em separacao";
-  }
-}
-
 function criarFluxoStatusVendas(metricas: LojaMetricasApiResponse | null): PerfilVendaStatusItem[] {
   const fluxo = FLUXO_VENDAS_BASE.map((item) => ({ ...item }));
 
@@ -327,7 +330,17 @@ function formatarDataPedido(dataPedido: string) {
   return dateTimeFormatter.format(data);
 }
 
-function formatarEnderecoEntrega(pedido: PedidoLeituraApiResponse) {
+function formatarEnderecoEntrega(
+  pedido: {
+    tipoLogradouroEntrega: string;
+    nomeEnderecoEntrega: string;
+    numeroEntrega: string;
+    complementoEntrega?: string | null;
+    cidadeEntrega: string;
+    ufEntrega: string;
+    cepEntrega: string;
+  },
+) {
   const partes = [
     `${pedido.tipoLogradouroEntrega} ${pedido.nomeEnderecoEntrega}, ${pedido.numeroEntrega}`,
     pedido.complementoEntrega?.trim() || "",
@@ -336,6 +349,52 @@ function formatarEnderecoEntrega(pedido: PedidoLeituraApiResponse) {
   ].filter(Boolean);
 
   return partes.join(" - ");
+}
+
+function normalizarStatusFluxoPedidoLoja(
+  statusPedido: LojaPedidoStatusPedidoApi,
+  statusVenda?: LojaPedidoStatusVendaApi | null,
+): PerfilPedidoStatusFluxo {
+  if (statusPedido === "Cancelado" || statusVenda === "Cancelada") {
+    return "cancelado";
+  }
+
+  if (statusPedido === "Entregue" || statusVenda === "Concluida") {
+    return "finalizado";
+  }
+
+  if (statusPedido === "Enviado" || statusVenda === "Enviada") {
+    return "enviado";
+  }
+
+  if (statusVenda === "Paga" || statusPedido === "Pago") {
+    return "pronto";
+  }
+
+  return "pendente";
+}
+
+function criarRotuloStatusPedidoLoja(
+  statusPedido: LojaPedidoStatusPedidoApi,
+  statusVenda?: LojaPedidoStatusVendaApi | null,
+) {
+  if (statusPedido === "Cancelado" || statusVenda === "Cancelada") {
+    return "Cancelado";
+  }
+
+  if (statusPedido === "Entregue" || statusVenda === "Concluida") {
+    return "Finalizado";
+  }
+
+  if (statusPedido === "Enviado" || statusVenda === "Enviada") {
+    return "Enviado";
+  }
+
+  if (statusVenda === "Paga" || statusPedido === "Pago") {
+    return "Pago";
+  }
+
+  return "Pendente";
 }
 
 function mapearItensPedido(
@@ -415,75 +474,95 @@ function mapearCompras(
   });
 }
 
-function mapearVendas(
-  pedidos: PedidoLeituraApiResponse[],
+function mapearItensPedidoLoja(
+  pedido: LojaPedidoLeituraApiResponse,
+  produtosPorId: Map<number, HomeProduct>,
+) {
+  return pedido.itens.map((item) => {
+    const produto = produtosPorId.get(item.produtoId);
+    const imagens = produto?.imagens?.filter(Boolean) ?? [];
+    const imagemPrincipal =
+      produto?.imagem || imagens[0] || criarImagemPlaceholder(item.nomeProduto);
+    const imagensDisponiveis = imagens.length > 0 ? imagens : [imagemPrincipal];
+
+    return {
+      id: item.id,
+      produtoId: item.produtoId,
+      nomeProduto: item.nomeProduto,
+      skuProduto: produto?.sku ?? "",
+      lojaId: pedido.lojaId,
+      nomeLoja: pedido.nomeLoja,
+      quantidade: item.quantidade,
+      precoUnitario: currencyFormatter.format(Number(item.precoUnitario)),
+      valorTotal: currencyFormatter.format(Number(item.valorTotal)),
+      descricao:
+        produto?.descricao?.trim() ||
+        "Produto vendido por esta loja. A descricao detalhada ainda nao foi enviada pela API.",
+      imagemUrl: imagemPrincipal,
+      imagens: imagensDisponiveis,
+    };
+  });
+}
+
+function mapearVendasLoja(
+  pedidos: LojaPedidoLeituraApiResponse[],
   produtos: HomeProduct[],
-  lojaId?: number | null,
 ): PerfilGridItem[] {
-  if (pedidos.length === 0 || !lojaId || !Number.isFinite(lojaId)) {
+  if (pedidos.length === 0) {
     return [];
   }
 
   const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
-  const pedidosRelacionados = pedidos.filter((pedido) =>
-    pedido.itens.some((item) => item.lojaId === lojaId),
-  );
-
-  return pedidosRelacionados.map((pedido) => {
-    // A aba da loja deve exibir somente os itens realmente vendidos por esta loja.
-    const itensFiltrados = pedido.itens.filter((item) => item.lojaId === lojaId);
-    const pedidoDaLoja = {
-      ...pedido,
-      itens: itensFiltrados,
-    };
-    const itensDetalhados = mapearItensPedido(pedidoDaLoja, produtosPorId);
+  return pedidos.map((pedido) => {
+    const itensDetalhados = mapearItensPedidoLoja(pedido, produtosPorId);
     const itemPrincipal = itensDetalhados[0];
-    const subtotalNumerico = itensFiltrados.reduce(
-      (acumulador, item) => acumulador + Number(item.valorTotal),
-      0,
-    );
-    const totalNumerico =
-      itensFiltrados.length === pedido.itens.length
-        ? Number(pedido.valorTotalPedido)
-        : subtotalNumerico + Number(pedido.valorFrete);
-    const totalItens = itensFiltrados.reduce(
-      (acumulador, item) => acumulador + Number(item.quantidade),
-      0,
-    );
-    const statusFluxoKey = normalizarStatusFluxoVenda(pedido.status);
-    const statusRotulo = criarRotuloStatusFluxoVenda(statusFluxoKey);
+    const statusFluxoKey = normalizarStatusFluxoPedidoLoja(pedido.statusPedido, pedido.statusVenda);
+    const statusRotulo = criarRotuloStatusPedidoLoja(pedido.statusPedido, pedido.statusVenda);
     const resumoItens = itensDetalhados
       .slice(0, 2)
       .map((item) => `${item.quantidade}x ${item.nomeProduto}`)
       .join(" | ");
     const descricaoPedido =
-      pedido.observacao?.trim() ||
+      pedido.observacao.trim() ||
       resumoItens ||
       "Abra o pedido para ver os itens, a entrega e as acoes do fluxo da venda.";
+    const freteDaLoja =
+      pedido.pedidoMultiloja || Number(pedido.valorTotalPedido) < Number(pedido.valorTotalLoja)
+        ? ""
+        : currencyFormatter.format(Number(pedido.valorTotalPedido) - Number(pedido.valorTotalLoja));
 
     return {
-      id: `venda-pedido-${pedido.id}`,
-      titulo: `Pedido #${pedido.id}`,
+      id: `venda-pedido-${pedido.pedidoId}`,
+      titulo: `Pedido #${pedido.pedidoId}`,
       subtitulo: `${statusRotulo} - ${pedido.tipoEntrega}`,
-      valor: currencyFormatter.format(totalNumerico),
+      valor: currencyFormatter.format(Number(pedido.valorTotalLoja)),
       imagemUrl: itemPrincipal?.imagemUrl,
       imagens: itemPrincipal?.imagens,
       descricao: descricaoPedido,
-      badge: totalItens > 1 ? `${totalItens} itens` : "1 item",
+      badge: pedido.quantidadeItens > 1 ? `${pedido.quantidadeItens} itens` : "1 item",
       pedido: {
-        pedidoId: pedido.id,
+        pedidoId: pedido.pedidoId,
+        vendaId: pedido.vendaId ?? undefined,
         contexto: "venda",
         status: statusRotulo,
+        statusPedido: pedido.statusPedido,
+        statusVenda: pedido.statusVenda ?? null,
         statusFluxoKey,
         tipoEntrega: pedido.tipoEntrega,
         dataPedido: formatarDataPedido(pedido.dataPedido),
         observacao:
-          pedido.observacao?.trim() ||
+          pedido.observacao.trim() ||
           "Sem observacoes adicionais informadas para este pedido.",
         enderecoEntrega: formatarEnderecoEntrega(pedido),
-        subtotal: currencyFormatter.format(subtotalNumerico),
-        frete: currencyFormatter.format(Number(pedido.valorFrete)),
-        total: currencyFormatter.format(totalNumerico),
+        subtotal: currencyFormatter.format(Number(pedido.valorTotalLoja)),
+        frete: freteDaLoja,
+        total: currencyFormatter.format(Number(pedido.valorTotalLoja)),
+        valorTotalPedido: currencyFormatter.format(Number(pedido.valorTotalPedido)),
+        pedidoMultiloja: pedido.pedidoMultiloja,
+        podeCancelar: pedido.podeCancelar,
+        podeMarcarComoEnviado: pedido.podeMarcarComoEnviado,
+        nomeCliente: pedido.nomeCliente,
+        emailCliente: pedido.emailCliente,
         itens: itensDetalhados,
       },
     };
@@ -536,6 +615,7 @@ function sincronizarSessaoComPerfil(perfil: UsuarioPerfilApiResponse) {
 export function usePerfilUsuarioData() {
   const [usuario, setUsuario] = useState<UsuarioPerfil | null>(null);
   const [loja, setLoja] = useState<LojaGestaoApiResponse | null>(null);
+  const [produtosCatalogo, setProdutosCatalogo] = useState<HomeProduct[]>([]);
   const [stats, setStats] = useState<UsuarioStatsData>(INITIAL_STATS);
   const [fluxoVendas, setFluxoVendas] = useState<PerfilVendaStatusItem[]>(FLUXO_VENDAS_BASE);
   const [abaAtiva, setAbaAtiva] = useState<PerfilTabId>("produtos");
@@ -587,6 +667,7 @@ export function usePerfilUsuarioData() {
         });
         setUsuario(null);
         setLoja(null);
+        setProdutosCatalogo([]);
         setStats(INITIAL_STATS);
         setFluxoVendas(FLUXO_VENDAS_BASE);
         setTabItems({
@@ -623,9 +704,22 @@ export function usePerfilUsuarioData() {
           return;
         }
 
+        const pedidosLoja = lojaAtual
+          ? await listarTodosPedidosDaMinhaLoja().catch(() => [])
+          : [];
+
+        if (!isMounted) {
+          return;
+        }
+
         const idsProdutosPedidos = Array.from(
           new Set(
             pedidos.flatMap((pedido) => pedido.itens.map((item) => item.produtoId)).filter(Boolean),
+          ),
+        );
+        const idsProdutosPedidosLoja = Array.from(
+          new Set(
+            pedidosLoja.flatMap((pedido) => pedido.itens.map((item) => item.produtoId)).filter(Boolean),
           ),
         );
         const idsProdutosMetricas = Array.from(
@@ -636,7 +730,7 @@ export function usePerfilUsuarioData() {
           ),
         );
         const idsProdutosRelacionados = Array.from(
-          new Set([...idsProdutosPedidos, ...idsProdutosMetricas]),
+          new Set([...idsProdutosPedidos, ...idsProdutosPedidosLoja, ...idsProdutosMetricas]),
         );
         const produtosPedidosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
         const produtosDetalhadosPedidos = await Promise.all(
@@ -650,6 +744,7 @@ export function usePerfilUsuarioData() {
         }
 
         const produtosEnriquecidosPedidos = combinarProdutos(produtos, produtosDetalhadosPedidos);
+        setProdutosCatalogo(produtosEnriquecidosPedidos);
 
         const lojaId = lojaAtual?.id ?? metricas?.lojaId;
         const produtosDaLoja = lojaId
@@ -673,7 +768,7 @@ export function usePerfilUsuarioData() {
               }))
           : [];
         const compras = mapearCompras(pedidos, produtosEnriquecidosPedidos);
-        const vendas = mapearVendas(pedidos, produtosEnriquecidosPedidos, lojaId);
+        const vendas = mapearVendasLoja(pedidosLoja, produtosEnriquecidosPedidos);
         const telefones = mapearTelefones(perfil);
         const enderecos = mapearEnderecos(perfil, enderecosDetalhados);
 
@@ -757,6 +852,27 @@ export function usePerfilUsuarioData() {
     });
   }
 
+  function mapearPedidoVendaLoja(pedido: LojaPedidoLeituraApiResponse) {
+    return mapearVendasLoja([pedido], produtosCatalogo)[0] ?? null;
+  }
+
+  async function buscarDetalhePedidoVenda(pedidoId: number) {
+    const pedido = await buscarPedidoDaMinhaLoja(pedidoId);
+    return mapearPedidoVendaLoja(pedido);
+  }
+
+  async function atualizarPedidoVendaStatus(
+    pedidoId: number,
+    statusVenda: Extract<LojaPedidoStatusVendaApi, "Enviada" | "Cancelada">,
+  ) {
+    const resposta = await atualizarStatusPedidoDaMinhaLoja(pedidoId, { statusVenda });
+
+    return {
+      mensagem: resposta.mensagem,
+      item: mapearPedidoVendaLoja(resposta.pedido),
+    };
+  }
+
   return {
     usuario,
     loja,
@@ -768,6 +884,8 @@ export function usePerfilUsuarioData() {
     ...pageState,
     setAbaAtiva,
     sincronizarProdutoLojaLocal,
+    buscarDetalhePedidoVenda,
+    atualizarPedidoVendaStatus,
     recarregarDados: () => setReloadSeed((currentSeed) => currentSeed + 1),
   };
 }

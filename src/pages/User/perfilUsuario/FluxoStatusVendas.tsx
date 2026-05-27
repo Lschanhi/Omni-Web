@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCheck, PackageCheck, PackageSearch, Truck } from "lucide-react";
+import { ArrowRight, CheckCheck, Clock3, PackageCheck, PackageSearch, Truck } from "lucide-react";
 import type { PerfilVendaStatusItem } from "../../../types/perfil";
 
 type FluxoStatusVendasProps = {
@@ -6,6 +6,7 @@ type FluxoStatusVendasProps = {
 };
 
 const iconesPorStatus = {
+  pendente: Clock3,
   "em-separacao": PackageSearch,
   pronto: PackageCheck,
   enviado: Truck,
@@ -24,8 +25,8 @@ export function FluxoStatusVendas({ itens }: FluxoStatusVendasProps) {
             Totais por etapa operacional da sua loja
           </h3>
           <p className="max-w-3xl text-sm text-neutral-400">
-            Acompanhe a mudanca de estado entre em separacao, pronto, enviado e finalizado usando
-            os totais que a API de metricas ja entrega para a loja.
+            Acompanhe os pedidos pendentes, pagos, enviados e finalizados usando os totais que a
+            API de metricas ja entrega para a loja.
           </p>
         </div>
 
@@ -35,7 +36,7 @@ export function FluxoStatusVendas({ itens }: FluxoStatusVendasProps) {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))]">
+      <div className="mt-5 grid gap-3 xl:grid-cols-[repeat(5,minmax(0,1fr))]">
         {itens.map((item, index) => {
           const Icone = iconesPorStatus[item.key];
           const isUltimo = index === itens.length - 1;
@@ -71,8 +72,8 @@ export function FluxoStatusVendas({ itens }: FluxoStatusVendasProps) {
       </div>
 
       <p className="mt-4 text-sm text-neutral-400">
-        A mudanca individual de status ainda depende de um endpoint da API para atualizar cada
-        pedido da loja. Por enquanto, o painel mostra os totais operacionais por etapa.
+        O painel resume as etapas do fluxo da loja e complementa a gestao individual de pedidos na
+        aba de vendas.
       </p>
     </div>
   );
