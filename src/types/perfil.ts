@@ -132,7 +132,9 @@ export interface PerfilPedidoDetalhe {
   total: string;
   valorTotalPedido?: string;
   pedidoMultiloja?: boolean;
+  podeAceitar?: boolean;
   podeCancelar?: boolean;
+  podeMarcarComoPronto?: boolean;
   podeMarcarComoEnviado?: boolean;
   nomeCliente?: string;
   emailCliente?: string;

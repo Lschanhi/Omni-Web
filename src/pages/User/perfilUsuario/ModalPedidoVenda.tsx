@@ -17,28 +17,77 @@ import { ProfileModal } from "../../../Components/perfil/ProfileModal";
 import { ProdutoImagem } from "../../../Components/produto/ProdutoImagem";
 import type { PerfilPedidoDetalhe } from "../../../types/perfil";
 
+type StatusVendaOperacionalLoja = "EmSeparacao" | "Pronto" | "Enviada";
+
 type ModalPedidoVendaProps = {
   descricao: string;
   isOpen: boolean;
   isCarregandoPedido?: boolean;
   isAtualizandoPedido?: boolean;
   pedido: PerfilPedidoDetalhe | null;
-  onAvancarStatus: (pedido: PerfilPedidoDetalhe) => void;
+  onAtualizarStatus: (
+    pedido: PerfilPedidoDetalhe,
+    statusVenda: StatusVendaOperacionalLoja,
+  ) => void;
   onCancelarPedido: (pedido: PerfilPedidoDetalhe) => void;
   onClose: () => void;
 };
 
-function criarMensagemBloqueioEnvio(pedido: PerfilPedidoDetalhe | null) {
+function obterAcaoOperacionalPrimaria(pedido: PerfilPedidoDetalhe | null) {
+  if (!pedido) {
+    return null;
+  }
+
+  if (pedido.podeAceitar) {
+    return {
+      statusVenda: "EmSeparacao" as const,
+      label: "Aceitar pedido",
+      descricao: "Confirma o aceite da loja e move a venda para Em separacao.",
+    };
+  }
+
+  if (pedido.podeMarcarComoPronto) {
+    return {
+      statusVenda: "Pronto" as const,
+      label: "Marcar como pronto",
+      descricao: "Indica que os itens ja foram separados e podem seguir para expedicao ou retirada.",
+    };
+  }
+
+  if (pedido.podeMarcarComoEnviado) {
+    return {
+      statusVenda: "Enviada" as const,
+      label: "Marcar como enviado",
+      descricao: "Registra a expedicao do pedido e deixa a conclusao para a confirmacao do comprador.",
+    };
+  }
+
+  return null;
+}
+
+function criarMensagemBloqueioFluxoOperacional(pedido: PerfilPedidoDetalhe | null) {
   if (!pedido) {
     return "";
   }
 
-  if (pedido.podeMarcarComoEnviado) {
+  if (obterAcaoOperacionalPrimaria(pedido)) {
     return "";
   }
 
+  if (pedido.statusVenda == null) {
+    return "O pedido ainda nao possui uma venda financeira vinculada para a loja. Aguarde a liberacao do backend para iniciar o fluxo operacional.";
+  }
+
   if (pedido.statusFluxoKey === "pendente") {
-    return "A venda ainda nao foi paga. A loja so pode marcar como enviada quando o backend retornar statusVenda = Paga.";
+    return "A venda esta pendente e aguarda o aceite operacional da loja para entrar em separacao.";
+  }
+
+  if (pedido.statusFluxoKey === "em-separacao") {
+    return "A venda ainda nao pode ser marcada como pronta porque o backend nao liberou essa transicao neste momento.";
+  }
+
+  if (pedido.statusFluxoKey === "pronto") {
+    return "A venda ainda nao pode ser marcada como enviada porque o backend nao liberou essa transicao neste momento.";
   }
 
   if (pedido.statusFluxoKey === "cancelado") {
@@ -69,6 +118,10 @@ function criarMensagemBloqueioCancelamento(pedido: PerfilPedidoDetalhe | null) {
     return "A venda ja foi enviada e nao pode mais ser cancelada pela loja.";
   }
 
+  if (pedido.statusFluxoKey === "pronto" || pedido.statusFluxoKey === "em-separacao") {
+    return "A venda ja avancou no fluxo operacional e nao pode mais ser cancelada pela loja.";
+  }
+
   if (pedido.statusFluxoKey === "finalizado") {
     return "A venda ja foi concluida e nao pode mais ser cancelada pela loja.";
   }
@@ -86,13 +139,13 @@ export function ModalPedidoVenda({
   isCarregandoPedido = false,
   isAtualizandoPedido = false,
   pedido,
-  onAvancarStatus,
+  onAtualizarStatus,
   onCancelarPedido,
   onClose,
 }: ModalPedidoVendaProps) {
-  const podeMarcarComoEnviado = Boolean(pedido?.podeMarcarComoEnviado) && !isAtualizandoPedido;
+  const acaoOperacional = obterAcaoOperacionalPrimaria(pedido);
   const podeCancelarPedido = Boolean(pedido?.podeCancelar) && !isAtualizandoPedido;
-  const mensagemBloqueioEnvio = criarMensagemBloqueioEnvio(pedido);
+  const mensagemBloqueioFluxo = criarMensagemBloqueioFluxoOperacional(pedido);
   const mensagemBloqueioCancelamento = criarMensagemBloqueioCancelamento(pedido);
 
   return (
@@ -274,8 +327,8 @@ export function ModalPedidoVenda({
                 <div>
                   <p className="text-sm font-semibold text-white">Acoes do vendedor</p>
                   <p className="mt-1 text-sm text-neutral-300">
-                    O painel agora usa as permissoes devolvidas pelo backend para decidir quando a
-                    loja pode enviar ou cancelar a propria venda.
+                    O painel usa as permissoes devolvidas pelo backend para decidir quando a loja
+                    pode aceitar, separar, marcar como pronta, enviar ou cancelar a propria venda.
                   </p>
                 </div>
 
@@ -286,21 +339,25 @@ export function ModalPedidoVenda({
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-3">
-                      {podeMarcarComoEnviado ? (
+                      {acaoOperacional ? (
                         <Botao
                           type="button"
-                          onClick={() => onAvancarStatus(pedido)}
+                          onClick={() => onAtualizarStatus(pedido, acaoOperacional.statusVenda)}
                           icon={<CheckCheck className="h-4 w-4" />}
                           disabled={isAtualizandoPedido}
                           className="sm:px-4"
                         >
-                          {isAtualizandoPedido ? "Salvando..." : "Marcar como enviado"}
+                          {isAtualizandoPedido ? "Salvando..." : acaoOperacional.label}
                         </Botao>
                       ) : (
                         <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-neutral-300">
-                          {mensagemBloqueioEnvio}
+                          {mensagemBloqueioFluxo}
                         </div>
                       )}
+
+                      {acaoOperacional ? (
+                        <p className="text-sm text-neutral-300">{acaoOperacional.descricao}</p>
+                      ) : null}
                     </div>
 
                     <div className="space-y-3">

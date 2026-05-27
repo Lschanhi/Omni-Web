@@ -25,8 +25,8 @@ export function FluxoStatusVendas({ itens }: FluxoStatusVendasProps) {
             Totais por etapa operacional da sua loja
           </h3>
           <p className="max-w-3xl text-sm text-neutral-400">
-            Acompanhe os pedidos pendentes, pagos, enviados e finalizados usando os totais que a
-            API de metricas ja entrega para a loja.
+            Acompanhe as vendas pendentes, em separacao, prontas, enviadas e concluidas usando os
+            totais que a API de metricas entrega para a loja.
           </p>
         </div>
 
