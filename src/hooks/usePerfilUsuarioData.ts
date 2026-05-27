@@ -420,23 +420,18 @@ function mapearVendas(
   produtos: HomeProduct[],
   lojaId?: number | null,
 ): PerfilGridItem[] {
-  if (pedidos.length === 0) {
+  if (pedidos.length === 0 || !lojaId || !Number.isFinite(lojaId)) {
     return [];
   }
 
   const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
-  const pedidosRelacionados =
-    lojaId && Number.isFinite(lojaId)
-      ? pedidos.filter((pedido) => pedido.itens.some((item) => item.lojaId === lojaId))
-      : pedidos;
-  const pedidosBase = pedidosRelacionados.length > 0 ? pedidosRelacionados : pedidos;
+  const pedidosRelacionados = pedidos.filter((pedido) =>
+    pedido.itens.some((item) => item.lojaId === lojaId),
+  );
 
-  return pedidosBase.map((pedido) => {
-    const itensDaLoja =
-      lojaId && Number.isFinite(lojaId)
-        ? pedido.itens.filter((item) => item.lojaId === lojaId)
-        : pedido.itens;
-    const itensFiltrados = itensDaLoja.length > 0 ? itensDaLoja : pedido.itens;
+  return pedidosRelacionados.map((pedido) => {
+    // A aba da loja deve exibir somente os itens realmente vendidos por esta loja.
+    const itensFiltrados = pedido.itens.filter((item) => item.lojaId === lojaId);
     const pedidoDaLoja = {
       ...pedido,
       itens: itensFiltrados,
