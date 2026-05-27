@@ -130,6 +130,14 @@ export type LojaAtualizarStatusPedidoResponse = {
   pedido: LojaPedidoLeituraApiResponse;
 };
 
+type LojaPedidoStatusFluxoCompat =
+  | "pendente"
+  | "em-separacao"
+  | "pronto"
+  | "enviado"
+  | "finalizado"
+  | "cancelado";
+
 function lerObjeto(valor: unknown) {
   return valor && typeof valor === "object" ? (valor as Record<string, unknown>) : null;
 }
@@ -257,6 +265,73 @@ function normalizarStatusVenda(valor: unknown): LojaPedidoStatusVendaApi | null 
   }
 }
 
+function inferirFluxoOperacionalPedidoLoja(
+  statusPedido: LojaPedidoStatusPedidoApi,
+  statusVenda?: LojaPedidoStatusVendaApi | null,
+): LojaPedidoStatusFluxoCompat {
+  if (statusPedido === "Cancelado" || statusVenda === "Cancelada") {
+    return "cancelado";
+  }
+
+  if (statusPedido === "Entregue" || statusVenda === "Concluida") {
+    return "finalizado";
+  }
+
+  if (statusPedido === "Enviado" || statusVenda === "Enviada") {
+    return "enviado";
+  }
+
+  if (statusVenda === "Pronto") {
+    return "pronto";
+  }
+
+  if (statusVenda === "EmSeparacao") {
+    return "em-separacao";
+  }
+
+  return "pendente";
+}
+
+function normalizarPermissoesPedidoLoja(
+  statusPedido: LojaPedidoStatusPedidoApi,
+  statusVenda: LojaPedidoStatusVendaApi | null | undefined,
+  podeAceitar: boolean,
+  podeMarcarComoPronto: boolean,
+  podeMarcarComoEnviado: boolean,
+) {
+  if (podeAceitar || podeMarcarComoPronto || !podeMarcarComoEnviado) {
+    return {
+      podeAceitar,
+      podeMarcarComoPronto,
+      podeMarcarComoEnviado,
+    };
+  }
+
+  const fluxo = inferirFluxoOperacionalPedidoLoja(statusPedido, statusVenda);
+
+  if (fluxo === "pendente") {
+    return {
+      podeAceitar: true,
+      podeMarcarComoPronto: false,
+      podeMarcarComoEnviado: false,
+    };
+  }
+
+  if (fluxo === "em-separacao") {
+    return {
+      podeAceitar: false,
+      podeMarcarComoPronto: true,
+      podeMarcarComoEnviado: false,
+    };
+  }
+
+  return {
+    podeAceitar,
+    podeMarcarComoPronto,
+    podeMarcarComoEnviado,
+  };
+}
+
 function normalizarItemPedidoLoja(valor: unknown): LojaPedidoItemLeituraApiResponse | null {
   const item = lerObjeto(valor);
 
@@ -299,6 +374,15 @@ function normalizarPedidoLoja(valor: unknown): LojaPedidoLeituraApiResponse | nu
   const itens = Array.isArray(itensBrutos)
     ? itensBrutos.map(normalizarItemPedidoLoja).filter((item): item is LojaPedidoItemLeituraApiResponse => Boolean(item))
     : [];
+  const statusPedido = normalizarStatusPedido(pedido.statusPedido ?? pedido.StatusPedido);
+  const statusVenda = normalizarStatusVenda(pedido.statusVenda ?? pedido.StatusVenda);
+  const permissoes = normalizarPermissoesPedidoLoja(
+    statusPedido,
+    statusVenda,
+    lerBoolean(pedido.podeAceitar ?? pedido.PodeAceitar, false),
+    lerBoolean(pedido.podeMarcarComoPronto ?? pedido.PodeMarcarComoPronto, false),
+    lerBoolean(pedido.podeMarcarComoEnviado ?? pedido.PodeMarcarComoEnviado, false),
+  );
 
   return {
     pedidoId,
@@ -308,8 +392,8 @@ function normalizarPedidoLoja(valor: unknown): LojaPedidoLeituraApiResponse | nu
     clienteId: lerNumero(pedido.clienteId ?? pedido.ClienteId, 0),
     nomeCliente: lerTexto(pedido.nomeCliente ?? pedido.NomeCliente),
     emailCliente: lerTexto(pedido.emailCliente ?? pedido.EmailCliente),
-    statusPedido: normalizarStatusPedido(pedido.statusPedido ?? pedido.StatusPedido),
-    statusVenda: normalizarStatusVenda(pedido.statusVenda ?? pedido.StatusVenda),
+    statusPedido,
+    statusVenda,
     tipoEntrega: lerTexto(pedido.tipoEntrega ?? pedido.TipoEntrega),
     valorTotalPedido: lerNumero(pedido.valorTotalPedido ?? pedido.ValorTotalPedido, 0),
     valorTotalLoja: lerNumero(pedido.valorTotalLoja ?? pedido.ValorTotalLoja, 0),
@@ -327,16 +411,10 @@ function normalizarPedidoLoja(valor: unknown): LojaPedidoLeituraApiResponse | nu
     cidadeEntrega: lerTexto(pedido.cidadeEntrega ?? pedido.CidadeEntrega),
     ufEntrega: lerTexto(pedido.ufEntrega ?? pedido.UfEntrega),
     pedidoMultiloja: lerBoolean(pedido.pedidoMultiloja ?? pedido.PedidoMultiloja, false),
-    podeAceitar: lerBoolean(pedido.podeAceitar ?? pedido.PodeAceitar, false),
+    podeAceitar: permissoes.podeAceitar,
     podeCancelar: lerBoolean(pedido.podeCancelar ?? pedido.PodeCancelar, false),
-    podeMarcarComoPronto: lerBoolean(
-      pedido.podeMarcarComoPronto ?? pedido.PodeMarcarComoPronto,
-      false,
-    ),
-    podeMarcarComoEnviado: lerBoolean(
-      pedido.podeMarcarComoEnviado ?? pedido.PodeMarcarComoEnviado,
-      false,
-    ),
+    podeMarcarComoPronto: permissoes.podeMarcarComoPronto,
+    podeMarcarComoEnviado: permissoes.podeMarcarComoEnviado,
     itens,
   };
 }
