@@ -17,6 +17,7 @@ import {
   isAuthenticated,
   updateStoredUser,
 } from "../Services/auth/session";
+import { ApiError } from "../Services/http/apiClient";
 import {
   criarImagemPlaceholder,
   listarProdutos,
@@ -29,6 +30,7 @@ import {
   obterMinhaLoja,
   atualizarStatusPedidoDaMinhaLoja,
   type LojaGestaoApiResponse,
+  type LojaAtualizarStatusVendaPermitido,
   type LojaPedidoLeituraApiResponse,
   type LojaPedidoStatusPedidoApi,
   type LojaPedidoStatusVendaApi,
@@ -75,13 +77,13 @@ const FLUXO_VENDAS_BASE: PerfilVendaStatusItem[] = [
     key: "pendente",
     label: "Pendente",
     total: 0,
-    descricao: "Pedidos aguardando criacao ou confirmacao da venda financeira para a loja.",
+    descricao: "Vendas aprovadas aguardando o aceite operacional da loja.",
   },
   {
     key: "em-separacao",
     label: "Em separacao",
     total: 0,
-    descricao: "Pedidos pagos que entraram na fila operacional da loja.",
+    descricao: "Pedidos aceitos pela loja e em preparacao para expedicao ou retirada.",
   },
   {
     key: "pronto",
@@ -222,37 +224,42 @@ function combinarProdutos(base: HomeProduct[], extras: Array<HomeProduct | null>
 
 function resolverChaveFluxoVenda(status: string) {
   const statusNormalizado = normalizarTextoBase(status.trim());
+  const statusCompacto = statusNormalizado.replace(/[\s_-]+/g, "");
 
-  if (!statusNormalizado) {
+  if (!statusCompacto) {
     return null;
   }
 
-  if (["pendente", "aguardando pagamento", "aguardando confirmacao"].includes(statusNormalizado)) {
+  if (
+    [
+      "pendente",
+      "aguardandopagamento",
+      "aguardandoconfirmacao",
+      "pago",
+      "paga",
+      "pagamentoconfirmado",
+      "confirmado",
+      "aprovado",
+      "aprovada",
+    ].includes(statusCompacto)
+  ) {
     return "pendente" as const;
   }
 
   if (
     [
-      "pago",
-      "pagamento confirmado",
-      "confirmado",
-      "em separacao",
+      "emseparacao",
       "separacao",
       "separando",
       "processando",
-      "em preparo",
-    ].includes(statusNormalizado)
+      "empreparo",
+    ].includes(statusCompacto)
   ) {
     return "em-separacao" as const;
   }
 
   if (
-    [
-      "pronto",
-      "pronto para envio",
-      "pronto para retirada",
-      "embalado",
-    ].includes(statusNormalizado)
+    ["pronto", "prontoparaenvio", "prontopararetirada", "embalado"].includes(statusCompacto)
   ) {
     return "pronto" as const;
   }
@@ -260,11 +267,12 @@ function resolverChaveFluxoVenda(status: string) {
   if (
     [
       "enviado",
-      "em transito",
-      "saiu para entrega",
+      "enviada",
+      "emtransito",
+      "saiuparaentrega",
       "transportando",
       "despachado",
-    ].includes(statusNormalizado)
+    ].includes(statusCompacto)
   ) {
     return "enviado" as const;
   }
@@ -273,22 +281,18 @@ function resolverChaveFluxoVenda(status: string) {
     [
       "cancelado",
       "cancelada",
-      "cancelamento solicitado",
-      "pedido cancelado",
-      "cancelado pelo vendedor",
-    ].includes(statusNormalizado)
+      "cancelamentosolicitado",
+      "pedidocancelado",
+      "canceladopelovendedor",
+    ].includes(statusCompacto)
   ) {
     return "cancelado" as const;
   }
 
   if (
-    [
-      "finalizado",
-      "entregue",
-      "concluido",
-      "recebido",
-      "retirado",
-    ].includes(statusNormalizado)
+    ["finalizado", "entregue", "concluido", "concluida", "recebido", "retirado"].includes(
+      statusCompacto,
+    )
   ) {
     return "finalizado" as const;
   }
@@ -297,7 +301,7 @@ function resolverChaveFluxoVenda(status: string) {
 }
 
 function normalizarStatusFluxoVenda(status: string): PerfilPedidoStatusFluxo {
-  return resolverChaveFluxoVenda(status) ?? "em-separacao";
+  return resolverChaveFluxoVenda(status) ?? "pendente";
 }
 
 function criarFluxoStatusVendas(metricas: LojaMetricasApiResponse | null): PerfilVendaStatusItem[] {
@@ -355,20 +359,35 @@ function normalizarStatusFluxoPedidoLoja(
   statusPedido: LojaPedidoStatusPedidoApi,
   statusVenda?: LojaPedidoStatusVendaApi | null,
 ): PerfilPedidoStatusFluxo {
-  if (statusPedido === "Cancelado" || statusVenda === "Cancelada") {
+  switch (statusVenda) {
+    case "Cancelada":
+      return "cancelado";
+    case "Concluida":
+      return "finalizado";
+    case "Enviada":
+      return "enviado";
+    case "Pronto":
+      return "pronto";
+    case "EmSeparacao":
+      return "em-separacao";
+    case "Pendente":
+    case "Paga":
+    case "Criada":
+      return "pendente";
+    default:
+      break;
+  }
+
+  if (statusPedido === "Cancelado") {
     return "cancelado";
   }
 
-  if (statusPedido === "Entregue" || statusVenda === "Concluida") {
+  if (statusPedido === "Entregue") {
     return "finalizado";
   }
 
-  if (statusPedido === "Enviado" || statusVenda === "Enviada") {
+  if (statusPedido === "Enviado") {
     return "enviado";
-  }
-
-  if (statusVenda === "Paga" || statusPedido === "Pago") {
-    return "pronto";
   }
 
   return "pendente";
@@ -378,20 +397,35 @@ function criarRotuloStatusPedidoLoja(
   statusPedido: LojaPedidoStatusPedidoApi,
   statusVenda?: LojaPedidoStatusVendaApi | null,
 ) {
-  if (statusPedido === "Cancelado" || statusVenda === "Cancelada") {
+  switch (statusVenda) {
+    case "Cancelada":
+      return "Cancelado";
+    case "Concluida":
+      return "Finalizado";
+    case "Enviada":
+      return "Enviado";
+    case "Pronto":
+      return "Pronto";
+    case "EmSeparacao":
+      return "Em separacao";
+    case "Pendente":
+    case "Paga":
+    case "Criada":
+      return "Pendente";
+    default:
+      break;
+  }
+
+  if (statusPedido === "Cancelado") {
     return "Cancelado";
   }
 
-  if (statusPedido === "Entregue" || statusVenda === "Concluida") {
+  if (statusPedido === "Entregue") {
     return "Finalizado";
   }
 
-  if (statusPedido === "Enviado" || statusVenda === "Enviada") {
+  if (statusPedido === "Enviado") {
     return "Enviado";
-  }
-
-  if (statusVenda === "Paga" || statusPedido === "Pago") {
-    return "Pago";
   }
 
   return "Pendente";
@@ -559,7 +593,9 @@ function mapearVendasLoja(
         total: currencyFormatter.format(Number(pedido.valorTotalLoja)),
         valorTotalPedido: currencyFormatter.format(Number(pedido.valorTotalPedido)),
         pedidoMultiloja: pedido.pedidoMultiloja,
+        podeAceitar: pedido.podeAceitar,
         podeCancelar: pedido.podeCancelar,
+        podeMarcarComoPronto: pedido.podeMarcarComoPronto,
         podeMarcarComoEnviado: pedido.podeMarcarComoEnviado,
         nomeCliente: pedido.nomeCliente,
         emailCliente: pedido.emailCliente,
@@ -704,7 +740,16 @@ export function usePerfilUsuarioData() {
           return;
         }
 
-        const pedidosLoja = lojaAtual ? await listarTodosPedidosDaMinhaLoja() : [];
+        const pedidosLoja = lojaAtual
+          ? await listarTodosPedidosDaMinhaLoja().catch((error) => {
+              if (error instanceof ApiError && error.status === 404) {
+                // Mantem o perfil carregando enquanto a API publicada ainda nao expuser a rota nova.
+                return [];
+              }
+
+              throw error;
+            })
+          : [];
 
         if (!isMounted) {
           return;
@@ -861,7 +906,7 @@ export function usePerfilUsuarioData() {
 
   async function atualizarPedidoVendaStatus(
     pedidoId: number,
-    statusVenda: Extract<LojaPedidoStatusVendaApi, "Enviada" | "Cancelada">,
+    statusVenda: LojaAtualizarStatusVendaPermitido,
   ) {
     const resposta = await atualizarStatusPedidoDaMinhaLoja(pedidoId, { statusVenda });
 

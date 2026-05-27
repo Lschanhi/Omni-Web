@@ -50,6 +50,7 @@ import {
 import {
   criarMinhaLoja,
   atualizarMinhaLoja,
+  type LojaAtualizarStatusVendaPermitido,
   type TipoDocumentoFiscalLoja,
 } from "../../Services/user/lojaService";
 import {
@@ -131,7 +132,7 @@ import {
 const ROTULO_STATUS_VENDA: Record<PerfilPedidoStatusFluxo, string> = {
   pendente: "Pendente",
   "em-separacao": "Em separacao",
-  pronto: "Pago",
+  pronto: "Pronto",
   enviado: "Enviado",
   finalizado: "Finalizado",
   cancelado: "Cancelado",
@@ -159,11 +160,27 @@ function criarFiltrosStatusVenda(itens: PerfilGridItem[]): PerfilVendaStatusFilt
   return [
     { key: "todos", label: "Todos", total: itens.length },
     { key: "pendente", label: "Pendente", total: totais.pendente },
-    { key: "pronto", label: "Pago", total: totais.pronto },
+    { key: "em-separacao", label: "Em separacao", total: totais["em-separacao"] },
+    { key: "pronto", label: "Pronto", total: totais.pronto },
     { key: "enviado", label: "Enviado", total: totais.enviado },
     { key: "finalizado", label: "Finalizado", total: totais.finalizado },
     { key: "cancelado", label: "Cancelado", total: totais.cancelado },
   ];
+}
+
+function pedidoPodeReceberStatusOperacional(
+  pedido: PerfilPedidoDetalhe,
+  statusVenda: Exclude<LojaAtualizarStatusVendaPermitido, "Cancelada">,
+) {
+  if (statusVenda === "EmSeparacao") {
+    return Boolean(pedido.podeAceitar);
+  }
+
+  if (statusVenda === "Pronto") {
+    return Boolean(pedido.podeMarcarComoPronto);
+  }
+
+  return Boolean(pedido.podeMarcarComoEnviado);
 }
 
 function atualizarCardPedidoVenda(
@@ -592,14 +609,17 @@ export function PerfilUsuarioPage() {
     );
   }
 
-  async function handleAvancarStatusPedidoVenda(pedido: PerfilPedidoDetalhe) {
-    if (isAtualizandoPedidoVenda || !pedido.podeMarcarComoEnviado) {
+  async function handleAtualizarStatusOperacionalPedidoVenda(
+    pedido: PerfilPedidoDetalhe,
+    statusVenda: Exclude<LojaAtualizarStatusVendaPermitido, "Cancelada">,
+  ) {
+    if (isAtualizandoPedidoVenda || !pedidoPodeReceberStatusOperacional(pedido, statusVenda)) {
       return;
     }
 
     try {
       setIsAtualizandoPedidoVenda(true);
-      const { mensagem, item } = await atualizarPedidoVendaStatus(pedido.pedidoId, "Enviada");
+      const { mensagem, item } = await atualizarPedidoVendaStatus(pedido.pedidoId, statusVenda);
 
       if (item?.pedido) {
         sincronizarPedidoVendaLocal(item);
@@ -1917,7 +1937,7 @@ export function PerfilUsuarioPage() {
         isCarregandoPedido={isCarregandoPedidoVenda}
         isAtualizandoPedido={isAtualizandoPedidoVenda}
         pedido={pedidoSelecionado?.contexto === "venda" ? pedidoSelecionado : null}
-        onAvancarStatus={handleAvancarStatusPedidoVenda}
+        onAtualizarStatus={handleAtualizarStatusOperacionalPedidoVenda}
         onCancelarPedido={handleAbrirCancelamentoPedidoVenda}
         onClose={fecharModal}
       />

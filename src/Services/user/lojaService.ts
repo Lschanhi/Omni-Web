@@ -53,7 +53,10 @@ export type LojaPedidoStatusPedidoApi =
 
 export type LojaPedidoStatusVendaApi =
   | "Criada"
+  | "Pendente"
   | "Paga"
+  | "EmSeparacao"
+  | "Pronto"
   | "Enviada"
   | "Concluida"
   | "Cancelada";
@@ -91,7 +94,9 @@ export type LojaPedidoLeituraApiResponse = {
   cidadeEntrega: string;
   ufEntrega: string;
   pedidoMultiloja: boolean;
+  podeAceitar: boolean;
   podeCancelar: boolean;
+  podeMarcarComoPronto: boolean;
   podeMarcarComoEnviado: boolean;
   itens: LojaPedidoItemLeituraApiResponse[];
 };
@@ -111,8 +116,13 @@ export type LojaPedidosListagemParams = {
   pageSize?: number;
 };
 
+export type LojaAtualizarStatusVendaPermitido = Extract<
+  LojaPedidoStatusVendaApi,
+  "EmSeparacao" | "Pronto" | "Enviada" | "Cancelada"
+>;
+
 export type LojaAtualizarStatusPedidoPayload = {
-  statusVenda: Extract<LojaPedidoStatusVendaApi, "Enviada" | "Cancelada">;
+  statusVenda: LojaAtualizarStatusVendaPermitido;
 };
 
 export type LojaAtualizarStatusPedidoResponse = {
@@ -134,6 +144,14 @@ function lerNumero(valor: unknown, fallback = 0) {
 
 function lerBoolean(valor: unknown, fallback = false) {
   return typeof valor === "boolean" ? valor : fallback;
+}
+
+function normalizarTextoChave(valor: string) {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s_-]+/g, "")
+    .toLowerCase();
 }
 
 function normalizarStatusPedido(valor: unknown): LojaPedidoStatusPedidoApi {
@@ -175,30 +193,64 @@ function normalizarStatusVenda(valor: unknown): LojaPedidoStatusVendaApi | null 
 
   if (typeof valor === "number") {
     switch (valor) {
-      case 2:
-        return "Paga";
-      case 3:
-        return "Enviada";
-      case 4:
+      case 7:
+        return "Cancelada";
+      case 6:
         return "Concluida";
       case 5:
-        return "Cancelada";
+        return "Enviada";
+      case 4:
+        return "Pronto";
+      case 3:
+        return "EmSeparacao";
+      case 2:
+        return "Pendente";
       case 1:
-      default:
         return "Criada";
+      default:
+        return null;
     }
   }
 
-  switch (valor) {
-    case "Criada":
+  if (typeof valor !== "string") {
+    return null;
+  }
+
+  switch (normalizarTextoChave(valor)) {
+    case "criada":
       return "Criada";
-    case "Paga":
-      return "Paga";
-    case "Enviada":
+    case "pendente":
+    case "paga":
+    case "pago":
+    case "aprovada":
+    case "aprovado":
+      return "Pendente";
+    case "emseparacao":
+    case "separacao":
+    case "separando":
+    case "processando":
+    case "empreparacao":
+      return "EmSeparacao";
+    case "pronto":
+    case "pronta":
+    case "prontoparaenvio":
+    case "prontopararetirada":
+    case "embalado":
+      return "Pronto";
+    case "enviada":
+    case "enviado":
+    case "emtransito":
+    case "saiuparaentrega":
+    case "despachado":
       return "Enviada";
-    case "Concluida":
+    case "concluida":
+    case "concluido":
+    case "entregue":
+    case "recebido":
+    case "retirado":
       return "Concluida";
-    case "Cancelada":
+    case "cancelada":
+    case "cancelado":
       return "Cancelada";
     default:
       return null;
@@ -275,7 +327,12 @@ function normalizarPedidoLoja(valor: unknown): LojaPedidoLeituraApiResponse | nu
     cidadeEntrega: lerTexto(pedido.cidadeEntrega ?? pedido.CidadeEntrega),
     ufEntrega: lerTexto(pedido.ufEntrega ?? pedido.UfEntrega),
     pedidoMultiloja: lerBoolean(pedido.pedidoMultiloja ?? pedido.PedidoMultiloja, false),
+    podeAceitar: lerBoolean(pedido.podeAceitar ?? pedido.PodeAceitar, false),
     podeCancelar: lerBoolean(pedido.podeCancelar ?? pedido.PodeCancelar, false),
+    podeMarcarComoPronto: lerBoolean(
+      pedido.podeMarcarComoPronto ?? pedido.PodeMarcarComoPronto,
+      false,
+    ),
     podeMarcarComoEnviado: lerBoolean(
       pedido.podeMarcarComoEnviado ?? pedido.PodeMarcarComoEnviado,
       false,
