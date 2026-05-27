@@ -704,9 +704,7 @@ export function usePerfilUsuarioData() {
           return;
         }
 
-        const pedidosLoja = lojaAtual
-          ? await listarTodosPedidosDaMinhaLoja().catch(() => [])
-          : [];
+        const pedidosLoja = lojaAtual ? await listarTodosPedidosDaMinhaLoja() : [];
 
         if (!isMounted) {
           return;

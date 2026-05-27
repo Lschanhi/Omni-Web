@@ -120,6 +120,229 @@ export type LojaAtualizarStatusPedidoResponse = {
   pedido: LojaPedidoLeituraApiResponse;
 };
 
+function lerObjeto(valor: unknown) {
+  return valor && typeof valor === "object" ? (valor as Record<string, unknown>) : null;
+}
+
+function lerTexto(valor: unknown, fallback = "") {
+  return typeof valor === "string" ? valor : fallback;
+}
+
+function lerNumero(valor: unknown, fallback = 0) {
+  return typeof valor === "number" && Number.isFinite(valor) ? valor : fallback;
+}
+
+function lerBoolean(valor: unknown, fallback = false) {
+  return typeof valor === "boolean" ? valor : fallback;
+}
+
+function normalizarStatusPedido(valor: unknown): LojaPedidoStatusPedidoApi {
+  if (typeof valor === "number") {
+    switch (valor) {
+      case 2:
+        return "Pago";
+      case 3:
+        return "Enviado";
+      case 4:
+        return "Entregue";
+      case 5:
+        return "Cancelado";
+      case 1:
+      default:
+        return "Pendente";
+    }
+  }
+
+  switch (valor) {
+    case "Pago":
+      return "Pago";
+    case "Enviado":
+      return "Enviado";
+    case "Entregue":
+      return "Entregue";
+    case "Cancelado":
+      return "Cancelado";
+    case "Pendente":
+    default:
+      return "Pendente";
+  }
+}
+
+function normalizarStatusVenda(valor: unknown): LojaPedidoStatusVendaApi | null {
+  if (valor == null) {
+    return null;
+  }
+
+  if (typeof valor === "number") {
+    switch (valor) {
+      case 2:
+        return "Paga";
+      case 3:
+        return "Enviada";
+      case 4:
+        return "Concluida";
+      case 5:
+        return "Cancelada";
+      case 1:
+      default:
+        return "Criada";
+    }
+  }
+
+  switch (valor) {
+    case "Criada":
+      return "Criada";
+    case "Paga":
+      return "Paga";
+    case "Enviada":
+      return "Enviada";
+    case "Concluida":
+      return "Concluida";
+    case "Cancelada":
+      return "Cancelada";
+    default:
+      return null;
+  }
+}
+
+function normalizarItemPedidoLoja(valor: unknown): LojaPedidoItemLeituraApiResponse | null {
+  const item = lerObjeto(valor);
+
+  if (!item) {
+    return null;
+  }
+
+  const produtoId = lerNumero(item.produtoId ?? item.ProdutoId, 0);
+  const id = lerNumero(item.id ?? item.Id, 0);
+
+  if (!id || !produtoId) {
+    return null;
+  }
+
+  return {
+    id,
+    produtoId,
+    nomeProduto: lerTexto(item.nomeProduto ?? item.NomeProduto, "Produto"),
+    quantidade: lerNumero(item.quantidade ?? item.Quantidade, 0),
+    precoUnitario: lerNumero(item.precoUnitario ?? item.PrecoUnitario, 0),
+    valorTotal: lerNumero(item.valorTotal ?? item.ValorTotal, 0),
+  };
+}
+
+function normalizarPedidoLoja(valor: unknown): LojaPedidoLeituraApiResponse | null {
+  const pedido = lerObjeto(valor);
+
+  if (!pedido) {
+    return null;
+  }
+
+  const pedidoId = lerNumero(pedido.pedidoId ?? pedido.PedidoId, 0);
+  const lojaId = lerNumero(pedido.lojaId ?? pedido.LojaId, 0);
+
+  if (!pedidoId || !lojaId) {
+    return null;
+  }
+
+  const itensBrutos = pedido.itens ?? pedido.Itens;
+  const itens = Array.isArray(itensBrutos)
+    ? itensBrutos.map(normalizarItemPedidoLoja).filter((item): item is LojaPedidoItemLeituraApiResponse => Boolean(item))
+    : [];
+
+  return {
+    pedidoId,
+    vendaId: lerNumero(pedido.vendaId ?? pedido.VendaId, 0) || null,
+    lojaId,
+    nomeLoja: lerTexto(pedido.nomeLoja ?? pedido.NomeLoja),
+    clienteId: lerNumero(pedido.clienteId ?? pedido.ClienteId, 0),
+    nomeCliente: lerTexto(pedido.nomeCliente ?? pedido.NomeCliente),
+    emailCliente: lerTexto(pedido.emailCliente ?? pedido.EmailCliente),
+    statusPedido: normalizarStatusPedido(pedido.statusPedido ?? pedido.StatusPedido),
+    statusVenda: normalizarStatusVenda(pedido.statusVenda ?? pedido.StatusVenda),
+    tipoEntrega: lerTexto(pedido.tipoEntrega ?? pedido.TipoEntrega),
+    valorTotalPedido: lerNumero(pedido.valorTotalPedido ?? pedido.ValorTotalPedido, 0),
+    valorTotalLoja: lerNumero(pedido.valorTotalLoja ?? pedido.ValorTotalLoja, 0),
+    quantidadeItens: lerNumero(pedido.quantidadeItens ?? pedido.QuantidadeItens, itens.length),
+    dataPedido: lerTexto(pedido.dataPedido ?? pedido.DataPedido),
+    observacao: lerTexto(pedido.observacao ?? pedido.Observacao),
+    tipoLogradouroEntrega: lerTexto(pedido.tipoLogradouroEntrega ?? pedido.TipoLogradouroEntrega),
+    nomeEnderecoEntrega: lerTexto(pedido.nomeEnderecoEntrega ?? pedido.NomeEnderecoEntrega),
+    numeroEntrega: lerTexto(pedido.numeroEntrega ?? pedido.NumeroEntrega),
+    complementoEntrega: lerTexto(
+      pedido.complementoEntrega ?? pedido.ComplementoEntrega,
+      "",
+    ) || null,
+    cepEntrega: lerTexto(pedido.cepEntrega ?? pedido.CepEntrega),
+    cidadeEntrega: lerTexto(pedido.cidadeEntrega ?? pedido.CidadeEntrega),
+    ufEntrega: lerTexto(pedido.ufEntrega ?? pedido.UfEntrega),
+    pedidoMultiloja: lerBoolean(pedido.pedidoMultiloja ?? pedido.PedidoMultiloja, false),
+    podeCancelar: lerBoolean(pedido.podeCancelar ?? pedido.PodeCancelar, false),
+    podeMarcarComoEnviado: lerBoolean(
+      pedido.podeMarcarComoEnviado ?? pedido.PodeMarcarComoEnviado,
+      false,
+    ),
+    itens,
+  };
+}
+
+function normalizarRespostaListaPedidosLoja(valor: unknown): LojaPedidoListagemApiResponse {
+  if (Array.isArray(valor)) {
+    const items = valor
+      .map(normalizarPedidoLoja)
+      .filter((pedido): pedido is LojaPedidoLeituraApiResponse => Boolean(pedido));
+
+    return {
+      items,
+      total: items.length,
+      page: 1,
+      pageSize: items.length,
+    };
+  }
+
+  const resposta = lerObjeto(valor);
+
+  if (!resposta) {
+    return {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 0,
+    };
+  }
+
+  const itemsBrutos = resposta.items ?? resposta.Items;
+  const items = Array.isArray(itemsBrutos)
+    ? itemsBrutos
+        .map(normalizarPedidoLoja)
+        .filter((pedido): pedido is LojaPedidoLeituraApiResponse => Boolean(pedido))
+    : [];
+
+  return {
+    items,
+    total: lerNumero(resposta.total ?? resposta.Total, items.length),
+    page: lerNumero(resposta.page ?? resposta.Page, 1),
+    pageSize: lerNumero(resposta.pageSize ?? resposta.PageSize, items.length),
+  };
+}
+
+function normalizarRespostaAtualizacaoPedidoLoja(valor: unknown): LojaAtualizarStatusPedidoResponse {
+  const resposta = lerObjeto(valor);
+  const pedido = normalizarPedidoLoja(
+    resposta?.pedido ?? resposta?.Pedido ?? resposta?.data ?? resposta?.Data,
+  );
+
+  if (!pedido) {
+    throw new Error("A API retornou uma resposta invalida ao atualizar o status da venda.");
+  }
+
+  return {
+    mensagem: lerTexto(
+      resposta?.mensagem ?? resposta?.Mensagem,
+      "Status da venda atualizado com sucesso.",
+    ),
+    pedido,
+  };
+}
+
 export async function obterMinhaLoja() {
   return apiRequest<LojaGestaoApiResponse>("/api/lojas/minha", {
     authenticated: true,
@@ -167,9 +390,11 @@ export async function listarPedidosDaMinhaLoja(params: LojaPedidosListagemParams
 
   const path = query.size > 0 ? `/api/lojas/minha/pedidos?${query.toString()}` : "/api/lojas/minha/pedidos";
 
-  return apiRequest<LojaPedidoListagemApiResponse>(path, {
+  const resposta = await apiRequest<unknown>(path, {
     authenticated: true,
   });
+
+  return normalizarRespostaListaPedidosLoja(resposta);
 }
 
 export async function listarTodosPedidosDaMinhaLoja(
@@ -199,16 +424,24 @@ export async function listarTodosPedidosDaMinhaLoja(
 }
 
 export async function buscarPedidoDaMinhaLoja(pedidoId: number) {
-  return apiRequest<LojaPedidoLeituraApiResponse>(`/api/lojas/minha/pedidos/${pedidoId}`, {
+  const resposta = await apiRequest<unknown>(`/api/lojas/minha/pedidos/${pedidoId}`, {
     authenticated: true,
   });
+
+  const pedido = normalizarPedidoLoja(resposta);
+
+  if (!pedido) {
+    throw new Error("A API retornou um pedido invalido para a loja.");
+  }
+
+  return pedido;
 }
 
 export async function atualizarStatusPedidoDaMinhaLoja(
   pedidoId: number,
   payload: LojaAtualizarStatusPedidoPayload,
 ) {
-  return apiRequest<LojaAtualizarStatusPedidoResponse>(
+  const resposta = await apiRequest<unknown>(
     `/api/lojas/minha/pedidos/${pedidoId}/status`,
     {
       method: "PUT",
@@ -216,4 +449,6 @@ export async function atualizarStatusPedidoDaMinhaLoja(
       body: payload,
     },
   );
+
+  return normalizarRespostaAtualizacaoPedidoLoja(resposta);
 }
