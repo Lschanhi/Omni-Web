@@ -50,7 +50,9 @@ export function ProdutoPage() {
         }
 
         const message =
-          error instanceof Error ? error.message : "Não foi possivel carregar o produto.";
+          error instanceof Error
+            ? error.message
+            : "Não foi possivel carregar o produto.";
         setErro(message);
       } finally {
         if (isMounted) {
@@ -82,7 +84,9 @@ export function ProdutoPage() {
       alert("Produto adicionado ao carrinho com sucesso!");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Não foi possível adicionar o produto.";
+        error instanceof Error
+          ? error.message
+          : "Não foi possível adicionar o produto.";
       alert(message);
 
       if (message.toLowerCase().includes("login")) {
@@ -126,6 +130,17 @@ export function ProdutoPage() {
     );
   }
 
+  {
+    /*função para transformar os espaços do nome do lojista em traços quando for coloca-los na url*/
+  }
+  function criarSlug(texto: string) {
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replaceAll(" ", "-");
+  }
+
   return (
     <PageLayout>
       <div className="min-h-screen px-4 py-8 text-white sm:px-6 lg:px-8 lg:py-10">
@@ -145,10 +160,24 @@ export function ProdutoPage() {
               <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10">
                 <div className="space-y-6">
                   <div className="space-y-3">
-                    <StoreIdentityBadge
-                      nome={produto.lojaNome ?? "Detalhes do produto"}
-                      avatarUrl={produto.lojaAvatarUrl}
-                    />
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const slug = criarSlug(produto.lojaNome ?? "");
+
+                        navigate({
+                          to: "/loja/$nomeLoja",
+                          params: {
+                            nomeLoja: slug,
+                          },
+                        });
+                      }}
+                    >
+                      <StoreIdentityBadge
+                        nome={produto.lojaNome ?? "Detalhes do produto"}
+                        avatarUrl={produto.lojaAvatarUrl}
+                      />
+                    </div>
 
                     <div className="space-y-3">
                       <h1 className="w-full break-words text-left text-[clamp(2rem,4vw,4rem)] font-bold leading-[1.05] tracking-tight text-white">
@@ -157,7 +186,9 @@ export function ProdutoPage() {
 
                       <p className="text-sm text-neutral-400 sm:text-base">
                         Código do produto:{" "}
-                        <span className="font-medium text-neutral-200">{produto.id}</span>
+                        <span className="font-medium text-neutral-200">
+                          {produto.id}
+                        </span>
                       </p>
 
                       {produto.descricao ? (
