@@ -68,14 +68,32 @@ export default function Footer() {
               </li>
 
               <li>
-                <a href="https://github.com/Lschanhi/Omni-Web" className="transition hover:text-yellow-300">
+                <a href="#" className="transition hover:text-yellow-300">
+                  <FaYoutube className="h-5 w-5" />
+                </a>
+              </li>
+            </ul>
+            
+            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500 pt-2">
+              GitHub
+            </h3>
+
+            <ul className="space-y-3 text-sm text-neutral-400">
+              <li className="flex gap-2">
+                <p className="transition hover:text-yellow-300">
+                  FrontEnd
+                </p>
+                <a href="https://github.com/Lschanhi/Omni-Web" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
                   <FaGithub className="h-5 w-5" />
                 </a>
               </li>
 
-              <li>
-                <a href="#" className="transition hover:text-yellow-300">
-                  <FaYoutube className="h-5 w-5" />
+              <li className="flex gap-2">
+                <p className="transition hover:text-yellow-300">
+                  BackEnd
+                </p>
+                <a href="https://github.com/Lschanhi/Omni-Api" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="h-5 w-5" />
                 </a>
               </li>
             </ul>
