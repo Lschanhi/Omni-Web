@@ -68,7 +68,7 @@ export default function Footer() {
               </li>
 
               <li>
-                <a href="#" className="transition hover:text-yellow-300">
+                <a href="https://github.com/Lschanhi/Omni-Web" className="transition hover:text-yellow-300">
                   <FaGithub className="h-5 w-5" />
                 </a>
               </li>
@@ -123,7 +123,7 @@ export default function Footer() {
                 <p className="transition hover:text-yellow-300">
                   Felipe Sardinha Miguel
                 </p>
-                <a href="#" className="transition hover:text-yellow-300 flex " target="_blank" rel="noopener noreferrer">
+                <a href="https://www.linkedin.com/in/felipe-sardinha-7007283b2?utm_source=share_via&utm_content=profile&utm_medium=member_android" className="transition hover:text-yellow-300 flex " target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="h-5 w-5" />
                 </a>
                 <a href="https://github.com/FelipeSardinhaMiguel" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
@@ -135,7 +135,7 @@ export default function Footer() {
                 <p className="transition hover:text-yellow-300" >
                   Gustavo Henrique da Silva
                 </p>
-                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.linkedin.com/in/gustavo-henrique-da-silva-98496a401?utm_source=share_via&utm_content=profile&utm_medium=member_android" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="h-5 w-5" />
                 </a>
                 <a href="https://github.com/Gustavoh345" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
@@ -147,7 +147,7 @@ export default function Footer() {
                 <p className="transition hover:text-yellow-300">
                   Icaro Dias Camargo
                 </p>
-                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.linkedin.com/in/icaro-dias-camargo-6b51281b3?utm_source=share_via&utm_content=profile&utm_medium=member_android" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="h-5 w-5" />
                 </a>
                 <a href="https://github.com/IcaroCamargo" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
@@ -159,7 +159,7 @@ export default function Footer() {
                 <p className="transition hover:text-yellow-300">
                   Lucas Soler Chanhi
                 </p>
-                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                <a href=" https://www.linkedin.com/in/lucassolerchanhi?utm_source=share_via&utm_content=profile&utm_medium=member_android" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="h-5 w-5" />
                 </a>
                 <a href="https://github.com/Lschanhi" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
@@ -172,7 +172,7 @@ export default function Footer() {
                 <p className="transition hover:text-yellow-300">
                   Mauro Alexandre da Silva Roque
                 </p>
-                <a href="#" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
+                <a href=" https://www.linkedin.com/in/mauro-alexandre-da-silva-roque-b18967300?utm_source=share_via&utm_content=profile&utm_medium=member_android" className="transition hover:text-yellow-300 flex" target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="h-5 w-5" />
                 </a>
                 <a href="https://github.com/MauroRoque007" className="transition hover:text-yellow-300" target="_blank" rel="noopener noreferrer">
