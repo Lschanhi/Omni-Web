@@ -132,6 +132,8 @@ export interface PerfilPedidoDetalhe {
   total: string;
   valorTotalPedido?: string;
   pedidoMultiloja?: boolean;
+  podeConfirmarRecebimento?: boolean;
+  possuiSolicitacaoCancelamentoAtiva?: boolean;
   podeAceitar?: boolean;
   podeCancelar?: boolean;
   podeMarcarComoPronto?: boolean;

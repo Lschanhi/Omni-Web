@@ -23,6 +23,7 @@ import {
   listarProdutos,
   obterProdutoPorId,
 } from "../Services/produtos/produtoService";
+import { buscarPedido } from "../Services/pedidos/pedidoService";
 import { listarEnderecos } from "../Services/user/enderecoService";
 import {
   buscarPedidoDaMinhaLoja,
@@ -446,7 +447,7 @@ function mapearItensPedido(
       id: item.id,
       produtoId: item.produtoId,
       nomeProduto: item.nomeProduto,
-      skuProduto: item.skuProduto,
+      skuProduto: item.skuProduto ?? "",
       lojaId: item.lojaId,
       nomeLoja: produto?.lojaNome?.trim() || item.nomeLoja,
       quantidade: item.quantidade,
@@ -470,6 +471,7 @@ function mapearCompras(
   return pedidos.map((pedido) => {
     const itensDetalhados = mapearItensPedido(pedido, produtosPorId);
     const itemPrincipal = itensDetalhados[0];
+    const pedidoMultiloja = new Set(itensDetalhados.map((item) => item.lojaId).filter(Boolean)).size > 1;
     const resumoItens = itensDetalhados
       .slice(0, 2)
       .map((item) => `${item.quantidade}x ${item.nomeProduto}`)
@@ -502,6 +504,11 @@ function mapearCompras(
         subtotal: currencyFormatter.format(Number(pedido.valorTotalProdutos)),
         frete: currencyFormatter.format(Number(pedido.valorFrete)),
         total: currencyFormatter.format(Number(pedido.valorTotalPedido)),
+        pedidoMultiloja,
+        podeConfirmarRecebimento: Boolean(pedido.podeConfirmarRecebimento),
+        possuiSolicitacaoCancelamentoAtiva: Boolean(
+          pedido.possuiSolicitacaoCancelamentoAtiva,
+        ),
         itens: itensDetalhados,
       },
     };
@@ -662,17 +669,6 @@ export function usePerfilUsuarioData() {
   });
   const [pageState, setPageState] = useState<PerfilPageState>(INITIAL_STATE);
   const [reloadSeed, setReloadSeed] = useState(0);
-
-  useEffect(() => {
-    setStats((currentStats) =>
-      currentStats.totalProdutos === tabItems.produtos.length
-        ? currentStats
-        : {
-            ...currentStats,
-            totalProdutos: tabItems.produtos.length,
-          },
-    );
-  }, [tabItems.produtos.length]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -862,6 +858,8 @@ export function usePerfilUsuarioData() {
   }, [reloadSeed]);
 
   function sincronizarProdutoLojaLocal(produto: PerfilGridItem) {
+    let proximoTotalProdutos = tabItems.produtos.length;
+
     setTabItems((currentItems) => {
       const indiceProdutoAtual = currentItems.produtos.findIndex(
         (item) => item.produtoId === produto.produtoId,
@@ -869,9 +867,11 @@ export function usePerfilUsuarioData() {
 
       if (produto.disponivel === false) {
         if (indiceProdutoAtual < 0) {
+          proximoTotalProdutos = currentItems.produtos.length;
           return currentItems;
         }
 
+        proximoTotalProdutos = currentItems.produtos.length - 1;
         return {
           ...currentItems,
           produtos: currentItems.produtos.filter((item) => item.produtoId !== produto.produtoId),
@@ -879,6 +879,7 @@ export function usePerfilUsuarioData() {
       }
 
       if (indiceProdutoAtual < 0) {
+        proximoTotalProdutos = currentItems.produtos.length + 1;
         return {
           ...currentItems,
           produtos: [produto, ...currentItems.produtos],
@@ -887,16 +888,35 @@ export function usePerfilUsuarioData() {
 
       const proximosProdutos = [...currentItems.produtos];
       proximosProdutos[indiceProdutoAtual] = produto;
+      proximoTotalProdutos = proximosProdutos.length;
 
       return {
         ...currentItems,
         produtos: proximosProdutos,
       };
     });
+
+    setStats((currentStats) =>
+      currentStats.totalProdutos === proximoTotalProdutos
+        ? currentStats
+        : {
+            ...currentStats,
+            totalProdutos: proximoTotalProdutos,
+          },
+    );
   }
 
   function mapearPedidoVendaLoja(pedido: LojaPedidoLeituraApiResponse) {
     return mapearVendasLoja([pedido], produtosCatalogo)[0] ?? null;
+  }
+
+  function mapearPedidoCompra(pedido: PedidoLeituraApiResponse) {
+    return mapearCompras([pedido], produtosCatalogo)[0] ?? null;
+  }
+
+  async function buscarDetalhePedidoCompra(pedidoId: number) {
+    const pedido = await buscarPedido(pedidoId);
+    return mapearPedidoCompra(pedido);
   }
 
   async function buscarDetalhePedidoVenda(pedidoId: number) {
@@ -927,6 +947,7 @@ export function usePerfilUsuarioData() {
     ...pageState,
     setAbaAtiva,
     sincronizarProdutoLojaLocal,
+    buscarDetalhePedidoCompra,
     buscarDetalhePedidoVenda,
     atualizarPedidoVendaStatus,
     recarregarDados: () => setReloadSeed((currentSeed) => currentSeed + 1),

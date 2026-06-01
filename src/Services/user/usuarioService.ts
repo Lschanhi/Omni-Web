@@ -103,14 +103,16 @@ export type PedidoLeituraApiResponse = {
   cepEntrega: string;
   cidadeEntrega: string;
   ufEntrega: string;
+  podeConfirmarRecebimento?: boolean;
+  possuiSolicitacaoCancelamentoAtiva?: boolean;
   itens: Array<{
     id: number;
     produtoId: number;
     nomeProduto: string;
-    skuProduto: string;
+    skuProduto?: string;
     lojaId: number;
     nomeLoja: string;
-    slugLoja: string;
+    slugLoja?: string;
     quantidade: number;
     precoUnitario: number;
     valorTotal: number;
