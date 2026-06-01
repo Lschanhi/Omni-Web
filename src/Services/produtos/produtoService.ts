@@ -31,11 +31,14 @@ type ProdutoApiResponse = {
   thumbnailUrl?: string | null;
   avatarLojaUrl?: string | null;
   lojaAvatarUrl?: string | null;
+  fotoPerfilLojaUrl?: string | null;
+  lojaFotoPerfilUrl?: string | null;
   logoLojaUrl?: string | null;
   lojaLogoUrl?: string | null;
   loja?: {
     id?: number;
     nomeFantasia?: string | null;
+    fotoPerfilUrl?: string | null;
     avatarUrl?: string | null;
     logoUrl?: string | null;
   } | null;
@@ -371,8 +374,11 @@ function extrairAvatarLoja(produto: ProdutoApiResponse) {
   const candidatos = [
     produto.avatarLojaUrl,
     produto.lojaAvatarUrl,
+    produto.fotoPerfilLojaUrl,
+    produto.lojaFotoPerfilUrl,
     produto.logoLojaUrl,
     produto.lojaLogoUrl,
+    produto.loja?.fotoPerfilUrl,
     produto.loja?.avatarUrl,
     produto.loja?.logoUrl,
     avatarSalvoLocalmente,
@@ -401,6 +407,7 @@ async function enriquecerProdutoComLojaPublica(produto: ProdutoApiResponse) {
     loja: {
       id: lojaPublica.id ?? produto.loja?.id,
       nomeFantasia: lojaPublica.nomeFantasia ?? produto.loja?.nomeFantasia ?? produto.nomeLoja,
+      fotoPerfilUrl: lojaPublica.fotoPerfilUrl ?? produto.loja?.fotoPerfilUrl ?? null,
       avatarUrl: lojaPublica.avatarUrl ?? produto.loja?.avatarUrl ?? null,
       logoUrl: lojaPublica.logoUrl ?? produto.loja?.logoUrl ?? null,
     },
