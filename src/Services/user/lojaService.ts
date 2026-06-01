@@ -7,6 +7,7 @@ export type LojaGestaoApiResponse = {
   usuarioId: number;
   nomeFantasia: string;
   slug?: string | null;
+  fotoPerfilUrl?: string | null;
   avatarUrl?: string | null;
   logoUrl?: string | null;
   tipoDocumentoFiscal: TipoDocumentoFiscalLoja;
@@ -37,6 +38,8 @@ export type LojaMutacaoPayload = {
   documentoFiscal: string;
   descricao?: string;
   emailContato?: string;
+  fotoPerfilDataUrl?: string;
+  fotoPerfilNomeArquivo?: string;
   usarEnderecoUsuario: boolean;
   enderecoUsuarioId?: number;
   usarTelefoneUsuario: boolean;
@@ -152,6 +155,69 @@ function lerNumero(valor: unknown, fallback = 0) {
 
 function lerBoolean(valor: unknown, fallback = false) {
   return typeof valor === "boolean" ? valor : fallback;
+}
+
+function normalizarLojaGestao(valor: unknown): LojaGestaoApiResponse {
+  const loja = lerObjeto(valor);
+
+  if (!loja) {
+    throw new Error("A API retornou uma resposta invalida para a loja.");
+  }
+
+  const id = lerNumero(loja.id ?? loja.Id, 0);
+  const usuarioId = lerNumero(loja.usuarioId ?? loja.UsuarioId, 0);
+
+  if (!id || !usuarioId) {
+    throw new Error("A API retornou uma resposta invalida para a loja.");
+  }
+
+  const fotoPerfilUrl =
+    lerTexto(loja.fotoPerfilUrl ?? loja.FotoPerfilUrl, "").trim() || null;
+  const avatarUrl =
+    lerTexto(loja.avatarUrl ?? loja.AvatarUrl, "").trim() || fotoPerfilUrl;
+  const logoUrl =
+    lerTexto(loja.logoUrl ?? loja.LogoUrl, "").trim() || fotoPerfilUrl;
+  const documentoFiscal = lerTexto(loja.documentoFiscal ?? loja.DocumentoFiscal, "");
+
+  return {
+    id,
+    usuarioId,
+    nomeFantasia: lerTexto(loja.nomeFantasia ?? loja.NomeFantasia),
+    slug: lerTexto(loja.slug ?? loja.Slug, "").trim() || null,
+    fotoPerfilUrl,
+    avatarUrl,
+    logoUrl,
+    tipoDocumentoFiscal: lerNumero(
+      loja.tipoDocumentoFiscal ?? loja.TipoDocumentoFiscal,
+      1,
+    ) as TipoDocumentoFiscalLoja,
+    documentoFiscal,
+    documentoFiscalFormatado:
+      lerTexto(
+        loja.documentoFiscalFormatado ?? loja.DocumentoFiscalFormatado,
+        documentoFiscal,
+      ).trim() || documentoFiscal,
+    descricao: lerTexto(loja.descricao ?? loja.Descricao, "").trim() || null,
+    emailContato: lerTexto(loja.emailContato ?? loja.EmailContato, "").trim() || null,
+    enderecoId: lerNumero(loja.enderecoId ?? loja.EnderecoId, 0) || null,
+    cep: lerTexto(loja.cep ?? loja.Cep, "").trim() || null,
+    cidade: lerTexto(loja.cidade ?? loja.Cidade, "").trim() || null,
+    uf: lerTexto(loja.uf ?? loja.Uf, "").trim() || null,
+    nomeEndereco: lerTexto(loja.nomeEndereco ?? loja.NomeEndereco, "").trim() || null,
+    numeroEndereco:
+      lerTexto(loja.numeroEndereco ?? loja.NumeroEndereco, "").trim() || null,
+    complementoEndereco:
+      lerTexto(loja.complementoEndereco ?? loja.ComplementoEndereco, "").trim() || null,
+    telefoneId: lerNumero(loja.telefoneId ?? loja.TelefoneId, 0) || null,
+    numeroTelefone:
+      lerTexto(loja.numeroTelefone ?? loja.NumeroTelefone, "").trim() || null,
+    tipoTelefone: lerTexto(loja.tipoTelefone ?? loja.TipoTelefone, "").trim() || null,
+    ativa: lerBoolean(loja.ativa ?? loja.Ativa, false),
+    mediaAvaliacao: lerNumero(loja.mediaAvaliacao ?? loja.MediaAvaliacao, 0),
+    totalAvaliacoes: lerNumero(loja.totalAvaliacoes ?? loja.TotalAvaliacoes, 0),
+    dtCriacao: lerTexto(loja.dtCriacao ?? loja.DtCriacao),
+    dtAtualizacao: lerTexto(loja.dtAtualizacao ?? loja.DtAtualizacao, "").trim() || null,
+  };
 }
 
 function normalizarTextoChave(valor: string) {
@@ -479,25 +545,31 @@ function normalizarRespostaAtualizacaoPedidoLoja(valor: unknown): LojaAtualizarS
 }
 
 export async function obterMinhaLoja() {
-  return apiRequest<LojaGestaoApiResponse>("/api/lojas/minha", {
+  const resposta = await apiRequest<unknown>("/api/lojas/minha", {
     authenticated: true,
   });
+
+  return normalizarLojaGestao(resposta);
 }
 
 export async function criarMinhaLoja(payload: LojaMutacaoPayload) {
-  return apiRequest<LojaGestaoApiResponse>("/api/lojas/minha", {
+  const resposta = await apiRequest<unknown>("/api/lojas/minha", {
     method: "POST",
     authenticated: true,
-    body: JSON.stringify(payload),
+    body: payload,
   });
+
+  return normalizarLojaGestao(resposta);
 }
 
 export async function atualizarMinhaLoja(payload: LojaMutacaoPayload) {
-  return apiRequest<LojaGestaoApiResponse>("/api/lojas/minha", {
+  const resposta = await apiRequest<unknown>("/api/lojas/minha", {
     method: "PUT",
     authenticated: true,
-    body: JSON.stringify(payload),
+    body: payload,
   });
+
+  return normalizarLojaGestao(resposta);
 }
 
 export async function listarPedidosDaMinhaLoja(params: LojaPedidosListagemParams = {}) {

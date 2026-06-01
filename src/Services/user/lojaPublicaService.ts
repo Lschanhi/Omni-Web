@@ -3,6 +3,7 @@ import { apiRequest } from "../http/apiClient";
 export type LojaPublicaResumo = {
   id?: number;
   nomeFantasia?: string | null;
+  fotoPerfilUrl?: string | null;
   avatarUrl?: string | null;
   logoUrl?: string | null;
 };
@@ -14,13 +15,42 @@ function normalizarLojaPublica(response: unknown): LojaPublicaResumo | null {
     return null;
   }
 
-  const loja = response as Partial<LojaPublicaResumo>;
+  const loja = response as Record<string, unknown>;
+  const fotoPerfilUrl =
+    typeof loja.fotoPerfilUrl === "string"
+      ? loja.fotoPerfilUrl
+      : typeof loja.FotoPerfilUrl === "string"
+        ? loja.FotoPerfilUrl
+        : null;
+  const avatarUrl =
+    typeof loja.avatarUrl === "string"
+      ? loja.avatarUrl
+      : typeof loja.AvatarUrl === "string"
+        ? loja.AvatarUrl
+        : fotoPerfilUrl;
+  const logoUrl =
+    typeof loja.logoUrl === "string"
+      ? loja.logoUrl
+      : typeof loja.LogoUrl === "string"
+        ? loja.LogoUrl
+        : fotoPerfilUrl;
 
   return {
-    id: typeof loja.id === "number" ? loja.id : undefined,
-    nomeFantasia: typeof loja.nomeFantasia === "string" ? loja.nomeFantasia : null,
-    avatarUrl: typeof loja.avatarUrl === "string" ? loja.avatarUrl : null,
-    logoUrl: typeof loja.logoUrl === "string" ? loja.logoUrl : null,
+    id:
+      typeof loja.id === "number"
+        ? loja.id
+        : typeof loja.Id === "number"
+          ? loja.Id
+          : undefined,
+    nomeFantasia:
+      typeof loja.nomeFantasia === "string"
+        ? loja.nomeFantasia
+        : typeof loja.NomeFantasia === "string"
+          ? loja.NomeFantasia
+          : null,
+    fotoPerfilUrl,
+    avatarUrl,
+    logoUrl,
   };
 }
 

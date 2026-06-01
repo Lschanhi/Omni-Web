@@ -58,13 +58,10 @@ import {
 import {
   criarMinhaLoja,
   atualizarMinhaLoja,
+  type LojaMutacaoPayload,
   type LojaAtualizarStatusVendaPermitido,
   type TipoDocumentoFiscalLoja,
 } from "../../Services/user/lojaService";
-import {
-  removeStoredLojaAvatar,
-  saveStoredLojaAvatar,
-} from "../../Services/user/lojaAvatarStorage";
 import {
   criarTelefone,
   removerTelefone,
@@ -197,6 +194,36 @@ function atualizarCardPedido(item: PerfilGridItem, itemAtualizado: PerfilGridIte
   }
 
   return itemAtualizado;
+}
+
+function avatarEhDataUrl(avatar: string) {
+  return /^data:image\//i.test(avatar.trim());
+}
+
+function criarPayloadAtualizacaoFotoLoja(
+  loja: {
+    nomeFantasia: string;
+    tipoDocumentoFiscal: TipoDocumentoFiscalLoja;
+    documentoFiscal: string;
+    descricao?: string | null;
+    emailContato?: string | null;
+    ativa: boolean;
+  },
+  fotoPerfilDataUrl?: string,
+  fotoPerfilNomeArquivo?: string,
+) {
+  return {
+    nomeFantasia: loja.nomeFantasia,
+    tipoDocumentoFiscal: loja.tipoDocumentoFiscal,
+    documentoFiscal: loja.documentoFiscal,
+    descricao: loja.descricao ?? undefined,
+    emailContato: loja.emailContato ?? undefined,
+    fotoPerfilDataUrl,
+    fotoPerfilNomeArquivo,
+    usarEnderecoUsuario: false,
+    usarTelefoneUsuario: false,
+    ativa: loja.ativa,
+  } satisfies LojaMutacaoPayload;
 }
 
 export function PerfilUsuarioPage() {
@@ -1270,7 +1297,7 @@ export function PerfilUsuarioPage() {
     try {
       setIsSalvandoAvatar(true);
       setAvatarErroAcao("");
-      const temNovaImagem = Boolean(avatarPreview);
+      const temNovaImagem = avatarEhDataUrl(avatarPreview);
 
       if (avatarDestino === "loja") {
         if (!loja) {
@@ -1279,20 +1306,34 @@ export function PerfilUsuarioPage() {
         }
 
         if (temNovaImagem) {
-          saveStoredLojaAvatar(loja.id, avatarPreview);
-          setAvatarLojaUrl(avatarPreview);
-        } else {
-          if (!avatarLojaUrl) {
+          const lojaAtualizada = await atualizarMinhaLoja(
+            criarPayloadAtualizacaoFotoLoja(
+              loja,
+              avatarPreview,
+              avatarNomeArquivo.trim() || undefined,
+            ),
+          );
+
+          setAvatarLojaUrl(resolverAvatarLoja(lojaAtualizada));
+          fecharModal();
+          recarregarDados();
+          alert("Foto da loja atualizada com sucesso!");
+          return;
+        }
+
+        if (!avatarPreview.trim()) {
+          if (!avatarLojaUrl.trim()) {
             fecharModal();
             return;
           }
 
-          removeStoredLojaAvatar(loja.id);
-          setAvatarLojaUrl(loja.logoUrl?.trim() || loja.avatarUrl?.trim() || "");
+          setAvatarErroAcao(
+            "A API da loja ainda nao suporta remover a foto de perfil. Se quiser, posso ligar esse fluxo quando o endpoint existir.",
+          );
+          return;
         }
 
         fecharModal();
-        alert(temNovaImagem ? "Foto da loja atualizada com sucesso!" : "Foto da loja removida com sucesso!");
         return;
       }
 
@@ -1309,7 +1350,7 @@ export function PerfilUsuarioPage() {
           role: usuarioSessao?.role ?? "Usuario",
           avatarUrl: response.fotoPerfil.avatarUrl,
         });
-      } else {
+      } else if (!avatarPreview.trim()) {
         if (!usuario.avatarUrl) {
           fecharModal();
           return;
@@ -1324,6 +1365,9 @@ export function PerfilUsuarioPage() {
           role: usuarioSessao?.role ?? "Usuario",
           avatarUrl: null,
         });
+      } else {
+        fecharModal();
+        return;
       }
 
       fecharModal();

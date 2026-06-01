@@ -387,6 +387,7 @@ export function criarCardLoja(
     nomeFantasia: string;
     descricao?: string | null;
     emailContato?: string | null;
+    fotoPerfilUrl?: string | null;
     avatarUrl?: string | null;
     logoUrl?: string | null;
     numeroTelefone?: string | null;
@@ -414,7 +415,8 @@ export function criarCardLoja(
     resumo:
       loja.descricao?.trim() ||
       "Esta aba mostra a apresentacao publica e os principais dados operacionais da loja.",
-    avatarUrl: avatarLojaUrl || loja.logoUrl || loja.avatarUrl || undefined,
+    avatarUrl:
+      avatarLojaUrl || loja.fotoPerfilUrl || loja.logoUrl || loja.avatarUrl || undefined,
     fotoHint: "Clique na foto para alterar a imagem da loja",
     badge: loja.ativa ? "Loja ativa" : "Loja em configuracao",
     infoItems: [
@@ -474,6 +476,7 @@ export function criarStatsComprador(
 export function resolverAvatarLoja(
   loja: {
     id: number;
+    fotoPerfilUrl?: string | null;
     avatarUrl?: string | null;
     logoUrl?: string | null;
   } | null,
@@ -482,7 +485,8 @@ export function resolverAvatarLoja(
     return "";
   }
 
-  const avatarDaApi = loja.logoUrl?.trim() || loja.avatarUrl?.trim() || "";
+  const avatarDaApi =
+    loja.fotoPerfilUrl?.trim() || loja.logoUrl?.trim() || loja.avatarUrl?.trim() || "";
 
   if (avatarDaApi) {
     return avatarDaApi;
