@@ -15,6 +15,11 @@ import {
 import { Botao } from "../../../Components/Botao";
 import { ProfileModal } from "../../../Components/perfil/ProfileModal";
 import { ProdutoImagem } from "../../../Components/produto/ProdutoImagem";
+import type {
+  MotivoSolicitacaoCancelamentoApi,
+  SolicitacaoCancelamentoLeituraApiResponse,
+  StatusSolicitacaoCancelamentoApi,
+} from "../../../Services/pedidos/pedidoService";
 import type { PerfilPedidoDetalhe } from "../../../types/perfil";
 
 type StatusVendaOperacionalLoja = "EmSeparacao" | "Pronto" | "Enviada";
@@ -23,8 +28,10 @@ type ModalPedidoVendaProps = {
   descricao: string;
   isOpen: boolean;
   isCarregandoPedido?: boolean;
+  isCarregandoSolicitacoes?: boolean;
   isAtualizandoPedido?: boolean;
   pedido: PerfilPedidoDetalhe | null;
+  solicitacoesCancelamento: SolicitacaoCancelamentoLeituraApiResponse[];
   onAtualizarStatus: (
     pedido: PerfilPedidoDetalhe,
     statusVenda: StatusVendaOperacionalLoja,
@@ -32,6 +39,70 @@ type ModalPedidoVendaProps = {
   onCancelarPedido: (pedido: PerfilPedidoDetalhe) => void;
   onClose: () => void;
 };
+
+const MOTIVOS_SOLICITACAO_CANCELAMENTO: Array<{
+  value: MotivoSolicitacaoCancelamentoApi;
+  label: string;
+}> = [
+  { value: "Arrependimento", label: "Arrependimento" },
+  { value: "AtrasoEntrega", label: "Atraso na entrega" },
+  { value: "ProdutoComDefeito", label: "Produto com defeito" },
+  { value: "ProdutoIncorreto", label: "Produto incorreto" },
+  { value: "EntregaNaoRecebida", label: "Entrega nao recebida" },
+  { value: "Outro", label: "Outro motivo" },
+];
+
+const STATUS_SOLICITACAO_TONE: Record<StatusSolicitacaoCancelamentoApi, string> = {
+  Aberta: "border-yellow-400/20 bg-yellow-400/10 text-yellow-100",
+  EmAnalise: "border-blue-400/20 bg-blue-400/10 text-blue-100",
+  Aprovada: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
+  Recusada: "border-red-400/20 bg-red-400/10 text-red-100",
+  Cancelada: "border-white/10 bg-white/5 text-neutral-200",
+  Concluida: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
+};
+
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
+
+function formatarDataHora(valor?: string | null) {
+  if (!valor) {
+    return "";
+  }
+
+  const data = new Date(valor);
+
+  if (Number.isNaN(data.getTime())) {
+    return valor;
+  }
+
+  return dateTimeFormatter.format(data);
+}
+
+function formatarMotivoSolicitacao(motivo: MotivoSolicitacaoCancelamentoApi) {
+  return (
+    MOTIVOS_SOLICITACAO_CANCELAMENTO.find((option) => option.value === motivo)?.label ?? motivo
+  );
+}
+
+function formatarStatusSolicitacao(status: StatusSolicitacaoCancelamentoApi) {
+  switch (status) {
+    case "EmAnalise":
+      return "Em analise";
+    case "Aprovada":
+      return "Aprovada";
+    case "Recusada":
+      return "Recusada";
+    case "Cancelada":
+      return "Cancelada";
+    case "Concluida":
+      return "Concluida";
+    case "Aberta":
+    default:
+      return "Aberta";
+  }
+}
 
 function obterAcaoOperacionalPrimaria(pedido: PerfilPedidoDetalhe | null) {
   if (!pedido) {
@@ -137,8 +208,10 @@ export function ModalPedidoVenda({
   descricao,
   isOpen,
   isCarregandoPedido = false,
+  isCarregandoSolicitacoes = false,
   isAtualizandoPedido = false,
   pedido,
+  solicitacoesCancelamento,
   onAtualizarStatus,
   onCancelarPedido,
   onClose,
@@ -147,6 +220,10 @@ export function ModalPedidoVenda({
   const podeCancelarPedido = Boolean(pedido?.podeCancelar) && !isAtualizandoPedido;
   const mensagemBloqueioFluxo = criarMensagemBloqueioFluxoOperacional(pedido);
   const mensagemBloqueioCancelamento = criarMensagemBloqueioCancelamento(pedido);
+  const solicitacaoAtiva =
+    solicitacoesCancelamento.find((solicitacao) =>
+      ["Aberta", "EmAnalise", "Aprovada"].includes(solicitacao.status),
+    ) ?? null;
 
   return (
     <ProfileModal
@@ -316,6 +393,93 @@ export function ModalPedidoVenda({
                   <span className="font-medium text-white">Total considerado pela loja</span>
                   <span className="font-semibold text-yellow-300">{pedido.total}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4">
+            <div className="flex items-start gap-3">
+              <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">Tratativas de cancelamento</p>
+                  <p className="mt-1 text-sm text-neutral-300">
+                    Use este bloco para acompanhar quando o comprador abrir uma solicitacao ligada
+                    a este pedido.
+                  </p>
+                </div>
+
+                {pedido.possuiSolicitacaoCancelamentoAtiva || solicitacaoAtiva ? (
+                  <div className="rounded-2xl border border-red-400/20 bg-black/30 px-4 py-3 text-sm text-red-100">
+                    Existe uma solicitacao ativa vinculada a este pedido. Revise a tratativa do
+                    comprador antes de seguir com o fluxo operacional.
+                  </div>
+                ) : null}
+
+                {isCarregandoSolicitacoes ? (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-neutral-300">
+                    Carregando historico das solicitacoes do comprador...
+                  </div>
+                ) : solicitacoesCancelamento.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-neutral-300">
+                    Nenhuma solicitacao de cancelamento foi aberta para este pedido ate o momento.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {solicitacoesCancelamento.map((solicitacao) => (
+                      <article
+                        key={solicitacao.id}
+                        className="rounded-2xl border border-white/10 bg-black/30 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-white">
+                              Solicitacao #{solicitacao.id}
+                            </p>
+                            <p className="text-sm text-neutral-300">
+                              Cliente: {solicitacao.nomeCliente}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-medium ${STATUS_SOLICITACAO_TONE[solicitacao.status]}`}
+                          >
+                            {formatarStatusSolicitacao(solicitacao.status)}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 space-y-3 text-sm text-neutral-300">
+                          <p>
+                            <span className="text-neutral-500">Motivo:</span>{" "}
+                            {formatarMotivoSolicitacao(solicitacao.motivo)}
+                          </p>
+                          <p>
+                            <span className="text-neutral-500">Criada em:</span>{" "}
+                            {formatarDataHora(solicitacao.dataCriacao)}
+                          </p>
+                          {solicitacao.observacao ? (
+                            <p>
+                              <span className="text-neutral-500">Observacao do cliente:</span>{" "}
+                              {solicitacao.observacao}
+                            </p>
+                          ) : null}
+                          {solicitacao.observacaoAnalise ? (
+                            <p>
+                              <span className="text-neutral-500">Analise registrada:</span>{" "}
+                              {solicitacao.observacaoAnalise}
+                            </p>
+                          ) : null}
+                          {solicitacao.dataConclusao ? (
+                            <p>
+                              <span className="text-neutral-500">Concluida em:</span>{" "}
+                              {formatarDataHora(solicitacao.dataConclusao)}
+                            </p>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

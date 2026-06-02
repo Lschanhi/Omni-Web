@@ -1,4 +1,9 @@
 import { apiRequest } from "../http/apiClient";
+import type {
+  MotivoSolicitacaoCancelamentoApi,
+  SolicitacaoCancelamentoLeituraApiResponse,
+  StatusSolicitacaoCancelamentoApi,
+} from "../pedidos/pedidoService";
 
 export type TipoDocumentoFiscalLoja = 1 | 2;
 
@@ -97,11 +102,19 @@ export type LojaPedidoLeituraApiResponse = {
   cidadeEntrega: string;
   ufEntrega: string;
   pedidoMultiloja: boolean;
+  possuiSolicitacaoCancelamentoAtiva?: boolean;
   podeAceitar: boolean;
   podeCancelar: boolean;
   podeMarcarComoPronto: boolean;
   podeMarcarComoEnviado: boolean;
   itens: LojaPedidoItemLeituraApiResponse[];
+};
+
+export type LojaSolicitacaoCancelamentoListagemApiResponse = {
+  items: SolicitacaoCancelamentoLeituraApiResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export type LojaPedidoListagemApiResponse = {
@@ -155,6 +168,46 @@ function lerNumero(valor: unknown, fallback = 0) {
 
 function lerBoolean(valor: unknown, fallback = false) {
   return typeof valor === "boolean" ? valor : fallback;
+}
+
+function normalizarStatusSolicitacaoCancelamento(
+  valor: unknown,
+): StatusSolicitacaoCancelamentoApi {
+  switch (valor) {
+    case "EmAnalise":
+      return "EmAnalise";
+    case "Aprovada":
+      return "Aprovada";
+    case "Recusada":
+      return "Recusada";
+    case "Cancelada":
+      return "Cancelada";
+    case "Concluida":
+      return "Concluida";
+    case "Aberta":
+    default:
+      return "Aberta";
+  }
+}
+
+function normalizarMotivoSolicitacaoCancelamento(
+  valor: unknown,
+): MotivoSolicitacaoCancelamentoApi {
+  switch (valor) {
+    case "Arrependimento":
+      return "Arrependimento";
+    case "AtrasoEntrega":
+      return "AtrasoEntrega";
+    case "ProdutoComDefeito":
+      return "ProdutoComDefeito";
+    case "ProdutoIncorreto":
+      return "ProdutoIncorreto";
+    case "EntregaNaoRecebida":
+      return "EntregaNaoRecebida";
+    case "Outro":
+    default:
+      return "Outro";
+  }
 }
 
 function normalizarLojaGestao(valor: unknown): LojaGestaoApiResponse {
@@ -477,6 +530,11 @@ function normalizarPedidoLoja(valor: unknown): LojaPedidoLeituraApiResponse | nu
     cidadeEntrega: lerTexto(pedido.cidadeEntrega ?? pedido.CidadeEntrega),
     ufEntrega: lerTexto(pedido.ufEntrega ?? pedido.UfEntrega),
     pedidoMultiloja: lerBoolean(pedido.pedidoMultiloja ?? pedido.PedidoMultiloja, false),
+    possuiSolicitacaoCancelamentoAtiva: lerBoolean(
+      pedido.possuiSolicitacaoCancelamentoAtiva ??
+        pedido.PossuiSolicitacaoCancelamentoAtiva,
+      false,
+    ),
     podeAceitar: permissoes.podeAceitar,
     podeCancelar: lerBoolean(pedido.podeCancelar ?? pedido.PodeCancelar, false),
     podeMarcarComoPronto: permissoes.podeMarcarComoPronto,
@@ -541,6 +599,123 @@ function normalizarRespostaAtualizacaoPedidoLoja(valor: unknown): LojaAtualizarS
       "Status da venda atualizado com sucesso.",
     ),
     pedido,
+  };
+}
+
+function normalizarSolicitacaoCancelamentoLoja(
+  valor: unknown,
+): SolicitacaoCancelamentoLeituraApiResponse | null {
+  const solicitacao = lerObjeto(valor);
+
+  if (!solicitacao) {
+    return null;
+  }
+
+  const id = lerNumero(solicitacao.id ?? solicitacao.Id, 0);
+  const pedidoId = lerNumero(solicitacao.pedidoId ?? solicitacao.PedidoId, 0);
+
+  if (!id || !pedidoId) {
+    return null;
+  }
+
+  return {
+    id,
+    pedidoId,
+    vendaId: lerNumero(solicitacao.vendaId ?? solicitacao.VendaId, 0),
+    clienteId: lerNumero(solicitacao.clienteId ?? solicitacao.ClienteId, 0),
+    nomeCliente: lerTexto(solicitacao.nomeCliente ?? solicitacao.NomeCliente),
+    emailCliente: lerTexto(solicitacao.emailCliente ?? solicitacao.EmailCliente),
+    vendedorId: lerNumero(solicitacao.vendedorId ?? solicitacao.VendedorId, 0),
+    lojaId: lerNumero(solicitacao.lojaId ?? solicitacao.LojaId, 0),
+    nomeLoja: lerTexto(solicitacao.nomeLoja ?? solicitacao.NomeLoja),
+    statusPedidoAtual: lerTexto(
+      solicitacao.statusPedidoAtual ?? solicitacao.StatusPedidoAtual,
+    ),
+    statusVendaAtual: lerTexto(
+      solicitacao.statusVendaAtual ?? solicitacao.StatusVendaAtual,
+    ),
+    statusPedidoOrigem: lerTexto(
+      solicitacao.statusPedidoOrigem ?? solicitacao.StatusPedidoOrigem,
+    ),
+    statusVendaOrigem: lerTexto(
+      solicitacao.statusVendaOrigem ?? solicitacao.StatusVendaOrigem,
+    ),
+    motivo: normalizarMotivoSolicitacaoCancelamento(
+      solicitacao.motivo ?? solicitacao.Motivo,
+    ),
+    status: normalizarStatusSolicitacaoCancelamento(
+      solicitacao.status ?? solicitacao.Status,
+    ),
+    observacao: lerTexto(solicitacao.observacao ?? solicitacao.Observacao),
+    observacaoAnalise:
+      lerTexto(
+        solicitacao.observacaoAnalise ?? solicitacao.ObservacaoAnalise,
+        "",
+      ) || null,
+    dataCriacao: lerTexto(solicitacao.dataCriacao ?? solicitacao.DataCriacao),
+    dataAtualizacao:
+      lerTexto(
+        solicitacao.dataAtualizacao ?? solicitacao.DataAtualizacao,
+        "",
+      ) || null,
+    dataAnalise:
+      lerTexto(solicitacao.dataAnalise ?? solicitacao.DataAnalise, "") || null,
+    dataConclusao:
+      lerTexto(solicitacao.dataConclusao ?? solicitacao.DataConclusao, "") || null,
+    podeCancelarPeloSolicitante: lerBoolean(
+      solicitacao.podeCancelarPeloSolicitante ??
+        solicitacao.PodeCancelarPeloSolicitante,
+      false,
+    ),
+    podeColocarEmAnalise: lerBoolean(
+      solicitacao.podeColocarEmAnalise ?? solicitacao.PodeColocarEmAnalise,
+      false,
+    ),
+    podeAprovar: lerBoolean(solicitacao.podeAprovar ?? solicitacao.PodeAprovar, false),
+    podeRecusar: lerBoolean(solicitacao.podeRecusar ?? solicitacao.PodeRecusar, false),
+    podeConcluir: lerBoolean(solicitacao.podeConcluir ?? solicitacao.PodeConcluir, false),
+  };
+}
+
+function normalizarRespostaListaSolicitacoesCancelamentoLoja(
+  valor: unknown,
+): LojaSolicitacaoCancelamentoListagemApiResponse {
+  if (Array.isArray(valor)) {
+    const items = valor
+      .map(normalizarSolicitacaoCancelamentoLoja)
+      .filter((item): item is SolicitacaoCancelamentoLeituraApiResponse => Boolean(item));
+
+    return {
+      items,
+      total: items.length,
+      page: 1,
+      pageSize: items.length,
+    };
+  }
+
+  const resposta = lerObjeto(valor);
+
+  if (!resposta) {
+    return {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 0,
+    };
+  }
+
+  const itemsBrutos = resposta.items ?? resposta.Items;
+  const items = Array.isArray(itemsBrutos)
+    ? itemsBrutos
+        .map(normalizarSolicitacaoCancelamentoLoja)
+        .filter((item): item is SolicitacaoCancelamentoLeituraApiResponse => Boolean(item))
+    : [];
+
+  return {
+    items,
+    total: lerNumero(resposta.total ?? resposta.Total, items.length),
+    page: lerNumero(resposta.page ?? resposta.Page, 1),
+    pageSize: lerNumero(resposta.pageSize ?? resposta.PageSize, items.length),
   };
 }
 
@@ -624,6 +799,54 @@ export async function listarTodosPedidosDaMinhaLoja(
 
     if (resposta.items.length === 0 || totalColetado >= resposta.total) {
       return pedidos;
+    }
+
+    page += 1;
+  }
+}
+
+export async function listarSolicitacoesCancelamentoDaMinhaLoja(params: {
+  page?: number;
+  pageSize?: number;
+} = {}) {
+  const query = new URLSearchParams();
+
+  if (params.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params.pageSize) {
+    query.set("pageSize", String(params.pageSize));
+  }
+
+  const path =
+    query.size > 0
+      ? `/api/lojas/minha/solicitacoes-cancelamento?${query.toString()}`
+      : "/api/lojas/minha/solicitacoes-cancelamento";
+
+  const resposta = await apiRequest<unknown>(path, {
+    authenticated: true,
+  });
+
+  return normalizarRespostaListaSolicitacoesCancelamentoLoja(resposta);
+}
+
+export async function listarTodasSolicitacoesCancelamentoDaMinhaLoja(pageSize = 100) {
+  let page = 1;
+  let totalColetado = 0;
+  const solicitacoes: SolicitacaoCancelamentoLeituraApiResponse[] = [];
+
+  while (true) {
+    const resposta = await listarSolicitacoesCancelamentoDaMinhaLoja({
+      page,
+      pageSize,
+    });
+
+    solicitacoes.push(...resposta.items);
+    totalColetado += resposta.items.length;
+
+    if (resposta.items.length === 0 || totalColetado >= resposta.total) {
+      return solicitacoes;
     }
 
     page += 1;
