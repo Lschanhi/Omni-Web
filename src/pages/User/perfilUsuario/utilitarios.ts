@@ -498,6 +498,7 @@ export function resolverAvatarLoja(
 export function criarStatsLoja(
   stats: {
     avaliacaoMedia: number;
+    totalAvaliacoes: number;
     totalProdutos: number;
     totalVendas: number;
     faturamentoBruto: number;
@@ -507,7 +508,7 @@ export function criarStatsLoja(
   return [
     {
       key: "avaliacao-media",
-      label: "Avaliacao media",
+      label: `Avaliacao${stats.totalAvaliacoes ? ` (${stats.totalAvaliacoes})` : ""}`,
       value: formatarAvaliacaoMedia(stats.avaliacaoMedia),
     },
     {

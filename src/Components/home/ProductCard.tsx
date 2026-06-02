@@ -1,8 +1,8 @@
-import { Star } from "lucide-react";
 import type { HomeProduct } from "../../types/home";
 import { Link } from "@tanstack/react-router";
 import { ProdutoImagem } from "../produto/ProdutoImagem";
 import { StoreIdentityBadge } from "../produto/StoreIdentityBadge";
+import Stars from "../RatingStar/Stars";
 
 // Define a estrutura esperada para um card individual de produto.
 type ProductCardProps = {
@@ -53,10 +53,7 @@ export function ProductCard({ produto }: ProductCardProps) {
             {produto.nome}
           </h3>
 
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span>{produto.avaliacao.toFixed(1)}</span>
-          </div>
+          <Stars nota={produto.avaliacao} className="text-sm" tamanho="sm" />
         </div>
 
         <p className="text-2xl font-bold tracking-tight text-yellow-400">

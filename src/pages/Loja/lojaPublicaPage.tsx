@@ -4,6 +4,7 @@ import { PageLayout } from "../../Components/PageLayout";
 import { Spotlight } from "../../Components/home/SpotLight";
 import { ProfileSection } from "../../Components/perfil/ProfileSection";
 import { ProductGrid } from "../../Components/perfil/ProductGrid";
+import Stars from "../../Components/RatingStar/Stars";
 
 export function LojaPublicaPage() {
   const { nomeLoja } = useParams({ strict: false });
@@ -123,9 +124,11 @@ export function LojaPublicaPage() {
                 Avaliação
               </p>
 
-              <h2 className="mt-2 text-3xl font-bold text-yellow-400">
-                {loja.avaliacao}
-              </h2>
+              <Stars
+                nota={loja.avaliacao}
+                className="mt-3 w-full"
+                tamanho="lg"
+              />
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6">

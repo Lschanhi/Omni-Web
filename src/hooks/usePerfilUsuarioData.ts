@@ -55,6 +55,7 @@ const INITIAL_STATE: PerfilPageState = {
 
 const INITIAL_STATS: UsuarioStatsData = {
   avaliacaoMedia: 0,
+  totalAvaliacoes: 0,
   seguidores: 0,
   totalProdutos: 0,
   totalVendas: 0,
@@ -458,6 +459,8 @@ function mapearItensPedido(
         "Produto comprado neste pedido. A descricao detalhada ainda nao foi enviada pela API.",
       imagemUrl: imagemPrincipal,
       imagens: imagensDisponiveis,
+      avaliacaoMedia: produto?.avaliacao,
+      totalAvaliacoes: produto?.totalAvaliacoes,
     };
   });
 }
@@ -486,6 +489,8 @@ function mapearCompras(
       titulo: `Pedido #${pedido.id}`,
       subtitulo: `${pedido.status} - ${pedido.tipoEntrega}`,
       valor: currencyFormatter.format(Number(pedido.valorTotalPedido)),
+      avaliacaoMedia: itemPrincipal?.avaliacaoMedia,
+      totalAvaliacoes: itemPrincipal?.totalAvaliacoes,
       imagemUrl: itemPrincipal?.imagemUrl,
       imagens: itemPrincipal?.imagens,
       badge: itemPrincipal?.nomeLoja ?? pedido.itens[0]?.nomeLoja ?? undefined,
@@ -541,6 +546,8 @@ function mapearItensPedidoLoja(
         "Produto vendido por esta loja. A descricao detalhada ainda nao foi enviada pela API.",
       imagemUrl: imagemPrincipal,
       imagens: imagensDisponiveis,
+      avaliacaoMedia: produto?.avaliacao,
+      totalAvaliacoes: produto?.totalAvaliacoes,
     };
   });
 }
@@ -622,6 +629,7 @@ function mapearStats(
 ): UsuarioStatsData {
   return {
     avaliacaoMedia: metricas?.mediaAvaliacao ?? 0,
+    totalAvaliacoes: metricas?.totalAvaliacoes ?? 0,
     seguidores: 0,
     totalProdutos,
     totalVendas:
@@ -797,6 +805,8 @@ export function usePerfilUsuarioData() {
                 titulo: produto.nome,
                 subtitulo: produto.categoriaNome,
                 valor: currencyFormatter.format(produto.preco),
+                avaliacaoMedia: produto.avaliacao,
+                totalAvaliacoes: produto.totalAvaliacoes,
                 imagemUrl: produto.imagem,
                 badge: "Publicado",
                 produtoId: produto.id,
