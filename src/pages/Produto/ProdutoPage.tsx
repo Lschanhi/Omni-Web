@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Botao } from "../../Components/Botao";
 import { PageLayout } from "../../Components/PageLayout";
 import { ProdutoImagem } from "../../Components/produto/ProdutoImagem";
+import Stars from "../../Components/RatingStar/Stars";
 import { StoreIdentityBadge } from "../../Components/produto/StoreIdentityBadge";
 import { useCart } from "../../context/CartContext";
 import { obterProdutoPorId } from "../../Services/produtos/produtoService";
@@ -211,12 +212,10 @@ export function ProdutoPage() {
                       })}
                     </p>
 
-                    <p className="mt-4 text-sm text-neutral-300">
-                      Avaliação media:{" "}
-                      <span className="font-semibold text-white">
-                        {produto.avaliacao.toFixed(1)} / 5
-                      </span>
-                    </p>
+                    <div className="mt-4 flex max-w-full flex-wrap items-center gap-2 text-sm text-neutral-300">
+                      <span>Avaliação media:</span>
+                      <Stars nota={produto.avaliacao} />
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-4 sm:flex-row">

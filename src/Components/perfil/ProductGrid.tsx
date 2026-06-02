@@ -1,5 +1,6 @@
 import type { PerfilGridItem } from "../../types/perfil";
 import { ProdutoImagem } from "../produto/ProdutoImagem";
+import Stars from "../RatingStar/Stars";
 
 // Renderiza os cards de produtos, vendas ou compras de forma reutilizavel.
 interface ProductGridProps {
@@ -57,6 +58,17 @@ export function ProductGrid({
                   </span>
                 ) : null}
               </div>
+
+              {typeof item.avaliacaoMedia === "number" ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Stars nota={item.avaliacaoMedia} tamanho="sm" className="min-w-0" />
+                  <span className="text-xs text-neutral-500">
+                    {item.totalAvaliacoes && item.totalAvaliacoes > 0
+                      ? `${item.totalAvaliacoes} avaliacoes`
+                      : "Sem avaliacoes"}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </>
         );

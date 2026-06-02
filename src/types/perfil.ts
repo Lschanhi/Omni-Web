@@ -63,6 +63,7 @@ export interface PerfilIdentityCardData {
 // Define os indicadores principais exibidos no painel de estatisticas.
 export interface UsuarioStatsData {
   avaliacaoMedia: number;
+  totalAvaliacoes: number;
   seguidores: number;
   totalProdutos: number;
   totalVendas: number;
@@ -166,6 +167,8 @@ export interface PerfilGridItem {
   titulo: string;
   subtitulo: string;
   valor: string;
+  avaliacaoMedia?: number;
+  totalAvaliacoes?: number;
   imagemUrl?: string;
   badge?: string;
   produtoId?: number;

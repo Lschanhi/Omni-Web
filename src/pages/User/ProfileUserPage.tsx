@@ -2226,8 +2226,8 @@ export function PerfilUsuarioPage() {
             </section>
           </Spotlight>
 
-          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <div className="space-y-6">
+          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+            <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
               {/* Decide se a coluna esquerda mostra loading, erro ou os dados do usuario. */}
               {isUsuarioLoading ? (
                 <ProfileSection>
