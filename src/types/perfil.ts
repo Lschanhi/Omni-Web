@@ -86,6 +86,7 @@ export type PerfilPedidoStatusFluxo =
   | "cancelado";
 
 export type PerfilFiltroStatusVendaId = "todos" | PerfilPedidoStatusFluxo;
+export type PerfilFiltroStatusCompraId = "compras" | "cancelado" | "devolucao";
 
 export interface PerfilVendaStatusItem {
   key: "pendente" | "em-separacao" | "pronto" | "enviado" | "finalizado";
@@ -98,6 +99,13 @@ export interface PerfilVendaStatusFiltroItem {
   key: PerfilFiltroStatusVendaId;
   label: string;
   total: number;
+}
+
+export interface PerfilCompraStatusFiltroItem {
+  key: PerfilFiltroStatusCompraId;
+  label: string;
+  total: number;
+  descricao: string;
 }
 
 export interface PerfilPedidoItem {
@@ -141,6 +149,14 @@ export interface PerfilPedidoDetalhe {
   nomeCliente?: string;
   emailCliente?: string;
   motivoCancelamento?: string;
+  solicitacaoResumo?: {
+    id: number;
+    tipo: Exclude<PerfilFiltroStatusCompraId, "compras">;
+    motivo: string;
+    status: string;
+    dataCriacao: string;
+    observacao?: string;
+  } | null;
   itens: PerfilPedidoItem[];
 }
 

@@ -600,6 +600,9 @@ function mapearVendasLoja(
         total: currencyFormatter.format(Number(pedido.valorTotalLoja)),
         valorTotalPedido: currencyFormatter.format(Number(pedido.valorTotalPedido)),
         pedidoMultiloja: pedido.pedidoMultiloja,
+        possuiSolicitacaoCancelamentoAtiva: Boolean(
+          pedido.possuiSolicitacaoCancelamentoAtiva,
+        ),
         podeAceitar: pedido.podeAceitar,
         podeCancelar: pedido.podeCancelar,
         podeMarcarComoPronto: pedido.podeMarcarComoPronto,
