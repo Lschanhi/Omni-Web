@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   CalendarDays,
   CircleAlert,
+  Download,
   MapPin,
   PackageCheck,
   RefreshCcw,
@@ -26,10 +27,12 @@ type ModalPedidoCompraProps = {
   isCarregandoPedido?: boolean;
   isCarregandoSolicitacoes?: boolean;
   isConfirmandoRecebimento?: boolean;
+  isBaixandoRecibo?: boolean;
   isProcessandoSolicitacao?: boolean;
   pedido: PerfilPedidoDetalhe | null;
   solicitacoesCancelamento: SolicitacaoCancelamentoLeituraApiResponse[];
   onClose: () => void;
+  onBaixarRecibo: (pedido: PerfilPedidoDetalhe) => void;
   onConfirmarRecebimento: (pedido: PerfilPedidoDetalhe) => void;
   onCriarSolicitacaoCancelamento: (
     pedido: PerfilPedidoDetalhe,
@@ -162,10 +165,12 @@ export function ModalPedidoCompra({
   isCarregandoPedido = false,
   isCarregandoSolicitacoes = false,
   isConfirmandoRecebimento = false,
+  isBaixandoRecibo = false,
   isProcessandoSolicitacao = false,
   pedido,
   solicitacoesCancelamento,
   onClose,
+  onBaixarRecibo,
   onConfirmarRecebimento,
   onCriarSolicitacaoCancelamento,
   onCancelarSolicitacaoCancelamento,
@@ -186,6 +191,11 @@ export function ModalPedidoCompra({
   );
   const podeConfirmarRecebimento =
     Boolean(pedido?.podeConfirmarRecebimento) &&
+    !isConfirmandoRecebimento &&
+    !isProcessandoSolicitacao;
+  const podeBaixarRecibo =
+    Boolean(pedido) &&
+    !isBaixandoRecibo &&
     !isConfirmandoRecebimento &&
     !isProcessandoSolicitacao;
   const podeCriarSolicitacao =
@@ -350,7 +360,7 @@ export function ModalPedidoCompra({
                     Atualizando detalhes e permissoes deste pedido...
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 lg:grid-cols-3">
                     <div className="space-y-3">
                       <Botao
                         type="button"
@@ -383,6 +393,23 @@ export function ModalPedidoCompra({
                       <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-neutral-300">
                         Abra uma solicitacao de cancelamento para a loja analisar o problema da
                         entrega ou do item recebido.
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Botao
+                        type="button"
+                        variant="secondary"
+                        onClick={() => onBaixarRecibo(pedido)}
+                        icon={<Download className="h-4 w-4" />}
+                        disabled={!podeBaixarRecibo}
+                        className="sm:px-4"
+                      >
+                        {isBaixandoRecibo ? "Baixando..." : "Baixar recibo"}
+                      </Botao>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-neutral-300">
+                        Baixe um arquivo imprimivel com os itens, entrega e totais desta compra.
                       </div>
                     </div>
                   </div>

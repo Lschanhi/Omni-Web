@@ -95,6 +95,7 @@ import { ModalPedidoCompra } from "./perfilUsuario/ModalPedidoCompra";
 import { ModalPedidoVenda } from "./perfilUsuario/ModalPedidoVenda";
 import { ModalPerfilUsuario } from "./perfilUsuario/ModalPerfilUsuario";
 import { ModalProdutoLoja } from "./perfilUsuario/ModalProdutoLoja";
+import { baixarReciboPedido } from "./perfilUsuario/reciboPedido";
 import { SecaoProdutosLoja } from "./perfilUsuario/SecaoProdutosLoja";
 import { StatusComprasTabs } from "./perfilUsuario/StatusComprasTabs";
 import { StatusVendasTabs } from "./perfilUsuario/StatusVendasTabs";
@@ -579,6 +580,7 @@ export function PerfilUsuarioPage() {
     useState(false);
   const [isConfirmandoRecebimentoPedidoCompra, setIsConfirmandoRecebimentoPedidoCompra] =
     useState(false);
+  const [isBaixandoReciboPedidoCompra, setIsBaixandoReciboPedidoCompra] = useState(false);
   const [isProcessandoSolicitacaoPedidoCompra, setIsProcessandoSolicitacaoPedidoCompra] =
     useState(false);
   const [isCarregandoPedidoVenda, setIsCarregandoPedidoVenda] = useState(false);
@@ -1143,6 +1145,24 @@ export function PerfilUsuarioPage() {
     toast(
       `Pedido #${pedido.pedidoId}: opcao de troca aberta. Ainda falta um endpoint para registrar essa solicitacao.`,
     );
+  }
+
+  function handleBaixarReciboPedido(pedido: PerfilPedidoDetalhe) {
+    if (isBaixandoReciboPedidoCompra) {
+      return;
+    }
+
+    try {
+      setIsBaixandoReciboPedidoCompra(true);
+      baixarReciboPedido(pedido);
+      toast.success("Recibo baixado. Abra o arquivo para consultar ou imprimir.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel baixar o recibo deste pedido.",
+      );
+    } finally {
+      window.setTimeout(() => setIsBaixandoReciboPedidoCompra(false), 150);
+    }
   }
 
   async function handleAtualizarStatusOperacionalPedidoVenda(
@@ -2494,9 +2514,11 @@ export function PerfilUsuarioPage() {
         isCarregandoPedido={isCarregandoPedidoCompra}
         isCarregandoSolicitacoes={isCarregandoSolicitacoesPedidoCompra}
         isConfirmandoRecebimento={isConfirmandoRecebimentoPedidoCompra}
+        isBaixandoRecibo={isBaixandoReciboPedidoCompra}
         isProcessandoSolicitacao={isProcessandoSolicitacaoPedidoCompra}
         pedido={pedidoSelecionado?.contexto === "compra" ? pedidoSelecionado : null}
         solicitacoesCancelamento={solicitacoesPedidoCompra}
+        onBaixarRecibo={handleBaixarReciboPedido}
         onClose={fecharModal}
         onConfirmarRecebimento={handleConfirmarRecebimentoPedido}
         onCriarSolicitacaoCancelamento={handleCriarSolicitacaoCancelamentoPedido}
