@@ -164,11 +164,13 @@ export function ProdutoPage() {
                     <div
                       className="cursor-pointer"
                       onClick={() => {
+                        {/*para pegar o id e o nome da loja */}
                         const slug = criarSlug(produto.lojaNome ?? "");
 
                         navigate({
-                          to: "/loja/$nomeLoja",
+                          to: "/loja/$idLoja/$nomeLoja",
                           params: {
+                            idLoja: String(produto.lojaId),
                             nomeLoja: slug,
                           },
                         });

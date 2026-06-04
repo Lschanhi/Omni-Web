@@ -18,7 +18,7 @@ import { Route as CarrinhoRouteImport } from './routes/carrinho'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProdutoIdRouteImport } from './routes/produto/$id'
-import { Route as LojaNomeLojaRouteImport } from './routes/loja/$nomeLoja'
+import { Route as LojaIdLojaNomeLojaRouteImport } from './routes/loja/$idLoja/$nomeLoja'
 
 const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
   id: '/recuperarSenha',
@@ -65,9 +65,9 @@ const ProdutoIdRoute = ProdutoIdRouteImport.update({
   path: '/produto/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LojaNomeLojaRoute = LojaNomeLojaRouteImport.update({
-  id: '/loja/$nomeLoja',
-  path: '/loja/$nomeLoja',
+const LojaIdLojaNomeLojaRoute = LojaIdLojaNomeLojaRouteImport.update({
+  id: '/loja/$idLoja/$nomeLoja',
+  path: '/loja/$idLoja/$nomeLoja',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -80,8 +80,8 @@ export interface FileRoutesByFullPath {
   '/paginaSucesso': typeof PaginaSucessoRoute
   '/perfilUsuario': typeof PerfilUsuarioRoute
   '/recuperarSenha': typeof RecuperarSenhaRoute
-  '/loja/$nomeLoja': typeof LojaNomeLojaRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/loja/$idLoja/$nomeLoja': typeof LojaIdLojaNomeLojaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -92,8 +92,8 @@ export interface FileRoutesByTo {
   '/paginaSucesso': typeof PaginaSucessoRoute
   '/perfilUsuario': typeof PerfilUsuarioRoute
   '/recuperarSenha': typeof RecuperarSenhaRoute
-  '/loja/$nomeLoja': typeof LojaNomeLojaRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/loja/$idLoja/$nomeLoja': typeof LojaIdLojaNomeLojaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -105,8 +105,8 @@ export interface FileRoutesById {
   '/paginaSucesso': typeof PaginaSucessoRoute
   '/perfilUsuario': typeof PerfilUsuarioRoute
   '/recuperarSenha': typeof RecuperarSenhaRoute
-  '/loja/$nomeLoja': typeof LojaNomeLojaRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/loja/$idLoja/$nomeLoja': typeof LojaIdLojaNomeLojaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -119,8 +119,8 @@ export interface FileRouteTypes {
     | '/paginaSucesso'
     | '/perfilUsuario'
     | '/recuperarSenha'
-    | '/loja/$nomeLoja'
     | '/produto/$id'
+    | '/loja/$idLoja/$nomeLoja'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,8 +131,8 @@ export interface FileRouteTypes {
     | '/paginaSucesso'
     | '/perfilUsuario'
     | '/recuperarSenha'
-    | '/loja/$nomeLoja'
     | '/produto/$id'
+    | '/loja/$idLoja/$nomeLoja'
   id:
     | '__root__'
     | '/'
@@ -143,8 +143,8 @@ export interface FileRouteTypes {
     | '/paginaSucesso'
     | '/perfilUsuario'
     | '/recuperarSenha'
-    | '/loja/$nomeLoja'
     | '/produto/$id'
+    | '/loja/$idLoja/$nomeLoja'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -156,8 +156,8 @@ export interface RootRouteChildren {
   PaginaSucessoRoute: typeof PaginaSucessoRoute
   PerfilUsuarioRoute: typeof PerfilUsuarioRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
-  LojaNomeLojaRoute: typeof LojaNomeLojaRoute
   ProdutoIdRoute: typeof ProdutoIdRoute
+  LojaIdLojaNomeLojaRoute: typeof LojaIdLojaNomeLojaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -225,11 +225,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProdutoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/loja/$nomeLoja': {
-      id: '/loja/$nomeLoja'
-      path: '/loja/$nomeLoja'
-      fullPath: '/loja/$nomeLoja'
-      preLoaderRoute: typeof LojaNomeLojaRouteImport
+    '/loja/$idLoja/$nomeLoja': {
+      id: '/loja/$idLoja/$nomeLoja'
+      path: '/loja/$idLoja/$nomeLoja'
+      fullPath: '/loja/$idLoja/$nomeLoja'
+      preLoaderRoute: typeof LojaIdLojaNomeLojaRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -244,8 +244,8 @@ const rootRouteChildren: RootRouteChildren = {
   PaginaSucessoRoute: PaginaSucessoRoute,
   PerfilUsuarioRoute: PerfilUsuarioRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
-  LojaNomeLojaRoute: LojaNomeLojaRoute,
   ProdutoIdRoute: ProdutoIdRoute,
+  LojaIdLojaNomeLojaRoute: LojaIdLojaNomeLojaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
