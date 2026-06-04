@@ -7,7 +7,7 @@ import { ProductGrid } from "../../Components/perfil/ProductGrid";
 import Stars from "../../Components/RatingStar/Stars";
 
 export function LojaPublicaPage() {
-  const { nomeLoja } = useParams({ strict: false });
+  const { idLoja, nomeLoja } = useParams({ strict: false });
 
   const [isLoading, setIsLoading] = useState(true);
 
