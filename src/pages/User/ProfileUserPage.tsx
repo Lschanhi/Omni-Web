@@ -153,6 +153,7 @@ const ROTULO_STATUS_COMPRA: Record<PerfilFiltroStatusCompraId, string> = {
   compras: "Compras",
   cancelado: "Cancelado",
   devolucao: "Devolucao",
+  finalizado: "Finalizado",
 };
 
 const MOTIVOS_DEVOLUCAO = new Set<MotivoSolicitacaoCancelamentoApi>([
@@ -200,7 +201,7 @@ function obterSolicitacaoMaisRecente(
 
 function classificarTratativaCompra(
   solicitacao: SolicitacaoCancelamentoLeituraApiResponse | null,
-): Exclude<PerfilFiltroStatusCompraId, "compras"> | null {
+): Exclude<PerfilFiltroStatusCompraId, "compras" | "finalizado"> | null {
   if (!solicitacao) {
     return null;
   }
@@ -307,13 +308,18 @@ function enriquecerPedidoVendaComSolicitacao(
 
 function obterFiltroStatusCompra(item: PerfilGridItem): PerfilFiltroStatusCompraId {
   const resumoSolicitacao = item.pedido?.solicitacaoResumo;
+  const statusFluxo = item.pedido?.statusFluxoKey;
 
-  if (resumoSolicitacao?.tipo) {
-    return resumoSolicitacao.tipo;
+  if (resumoSolicitacao?.tipo === "devolucao") {
+    return "devolucao";
   }
 
-  if (item.pedido?.statusFluxoKey === "cancelado") {
+  if (statusFluxo === "cancelado" || resumoSolicitacao?.tipo === "cancelado") {
     return "cancelado";
+  }
+
+  if (statusFluxo === "finalizado") {
+    return "finalizado";
   }
 
   return "compras";
@@ -323,16 +329,15 @@ function criarFiltrosStatusCompra(itens: PerfilGridItem[]): PerfilCompraStatusFi
   const totais = itens.reduce(
     (acumulador, item) => {
       const filtro = obterFiltroStatusCompra(item);
-
-      if (filtro !== "compras") {
-        acumulador[filtro] += 1;
-      }
+      acumulador[filtro] += 1;
 
       return acumulador;
     },
     {
+      compras: 0,
       cancelado: 0,
       devolucao: 0,
+      finalizado: 0,
     },
   );
 
@@ -340,20 +345,26 @@ function criarFiltrosStatusCompra(itens: PerfilGridItem[]): PerfilCompraStatusFi
     {
       key: "compras",
       label: "Compras",
-      total: itens.length,
-      descricao: "Mostra todas as compras da conta, com ou sem tratativas abertas.",
+      total: totais.compras,
+      descricao: "Mostra apenas os pedidos que ainda estao em andamento.",
     },
     {
       key: "cancelado",
       label: "Cancelado",
       total: totais.cancelado,
-      descricao: "Pedidos cancelados ou com solicitacao de cancelamento registrada.",
+      descricao: "Pedidos cancelados ou com tratativa de cancelamento vinculada.",
     },
     {
       key: "devolucao",
       label: "Devolucao",
       total: totais.devolucao,
-      descricao: "Pedidos com tratativas abertas por defeito ou produto incorreto.",
+      descricao: "Pedidos com tratativa de devolucao por defeito ou produto incorreto.",
+    },
+    {
+      key: "finalizado",
+      label: "Finalizado",
+      total: totais.finalizado,
+      descricao: "Pedidos concluidos sem cancelamento ou devolucao vinculados.",
     },
   ];
 }
@@ -611,17 +622,12 @@ export function PerfilUsuarioPage() {
             return item.pedido?.statusFluxoKey === filtroStatusVendaAtivo;
           })
         : isBuyerOrdersTab
-          ? pedidosCompraEnriquecidos.filter((item) => {
-              if (filtroStatusCompraAtivo === "compras") {
-                return true;
-              }
-
-              return obterFiltroStatusCompra(item) === filtroStatusCompraAtivo;
-            })
+          ? pedidosCompraEnriquecidos.filter(
+              (item) => obterFiltroStatusCompra(item) === filtroStatusCompraAtivo,
+            )
           : tabContent.itens;
   const estaFiltrandoCategoria = isStoreProductsTab && categoriaLojaAtiva !== "todas";
-  const estaFiltrandoStatusCompra =
-    isBuyerOrdersTab && filtroStatusCompraAtivo !== "compras";
+  const estaFiltrandoStatusCompra = isBuyerOrdersTab;
   const estaFiltrandoStatusVenda = isStoreSalesTab && filtroStatusVendaAtivo !== "todos";
   const cardAtivo =
     visaoAtiva === "loja"
@@ -2389,8 +2395,12 @@ export function PerfilUsuarioPage() {
                           ? "Nenhum produto nessa categoria"
                           : estaFiltrandoStatusCompra
                             ? filtroStatusCompraAtivo === "cancelado"
-                              ? "Nenhuma tratativa de cancelamento"
-                              : "Nenhuma tratativa de devolucao"
+                              ? "Nenhum pedido cancelado"
+                              : filtroStatusCompraAtivo === "devolucao"
+                                ? "Nenhuma devolucao encontrada"
+                                : filtroStatusCompraAtivo === "finalizado"
+                                  ? "Nenhum pedido finalizado"
+                                  : "Nenhuma compra em andamento"
                             : estaFiltrandoStatusVenda
                               ? `Nenhum pedido em ${ROTULO_STATUS_VENDA[filtroStatusVendaAtivo as PerfilPedidoStatusFluxo]}`
                               : tabContent.vazioTitulo
@@ -2400,8 +2410,12 @@ export function PerfilUsuarioPage() {
                           ? "Selecione outra categoria ou adicione um novo produto para preencher essa seção."
                           : estaFiltrandoStatusCompra
                             ? filtroStatusCompraAtivo === "cancelado"
-                              ? "Quando um pedido for cancelado ou receber uma solicitacao de cancelamento, ele aparecera aqui."
-                              : "Quando uma compra receber tratativa por defeito ou produto incorreto, ela aparecera aqui."
+                              ? "Quando um pedido for cancelado ou entrar em tratativa de cancelamento, ele aparecera aqui."
+                              : filtroStatusCompraAtivo === "devolucao"
+                                ? "Quando uma compra receber tratativa de devolucao por defeito ou produto incorreto, ela aparecera aqui."
+                                : filtroStatusCompraAtivo === "finalizado"
+                                  ? "Quando uma compra for concluida sem cancelamento ou devolucao, ela aparecera aqui."
+                                  : "Quando houver compras ainda em andamento, elas aparecerao aqui."
                             : estaFiltrandoStatusVenda
                               ? "Quando houver pedidos nessa etapa do fluxo, eles vao aparecer aqui com os produtos do pedido e as acoes do vendedor."
                               : tabContent.vazioDescricao
